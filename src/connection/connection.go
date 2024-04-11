@@ -60,20 +60,20 @@ func (c *Connection) ReadPacket() (p packet.SerializablePacket, read int, err er
 		n          int
 	)
 
-	length, n, err = types.ReadVarInt(c.Conn)
+	length, n, err = types.ReadVarInt(c)
 	read += n
 	if err != nil {
 		return
 	}
 
-	id, n, err = types.ReadVarInt(c.Conn)
+	id, n, err = types.ReadVarInt(c)
 	read += n
 	if err != nil {
 		return
 	}
 
 	buf := make([]byte, int(length)-id.Len())
-	n, err = io.ReadFull(c.Conn, buf)
+	n, err = io.ReadFull(c, buf)
 	if err != nil {
 		return
 	}
@@ -92,8 +92,7 @@ func (c *Connection) Encrypt() error {
 	if err != nil {
 		return err
 	}
-	enc := cfb8.NewEncrypter(s, c.Secret)
-	c.Reader = cipher.StreamReader{S: enc, R: c.Conn}
-	c.Writer = cipher.StreamWriter{S: enc, W: c.Conn}
+	c.Reader = cipher.StreamReader{S: cfb8.NewDecrypter(s, c.Secret), R: c.Conn}
+	c.Writer = cipher.StreamWriter{S: cfb8.NewEncrypter(s, c.Secret), W: c.Conn}
 	return nil
 }

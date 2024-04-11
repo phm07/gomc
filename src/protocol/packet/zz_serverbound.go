@@ -24,6 +24,18 @@ func init() {
 	serverbound[2][1] = func() SerializablePacket {
 		return &ServerboundLoginEncryptionResponse{}
 	}
+	serverbound[2][3] = func() SerializablePacket {
+		return &ServerboundLoginAck{}
+	}
+	serverbound[3][0] = func() SerializablePacket {
+		return &ServerboundConfigurationClientInformation{}
+	}
+	serverbound[3][1] = func() SerializablePacket {
+		return &ServerboundConfigurationPluginMessage{}
+	}
+	serverbound[3][2] = func() SerializablePacket {
+		return &ServerboundConfigurationFinishAck{}
+	}
 }
 
 func (p *ServerboundHandshake) Serialize() []byte {
@@ -57,6 +69,36 @@ func (p *ServerboundLoginEncryptionResponse) Serialize() []byte {
 	var buf bytes.Buffer
 	buf.Write(p.SharedSecret.Marshal())
 	buf.Write(p.VerifyToken.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundLoginAck) Serialize() []byte {
+	var buf bytes.Buffer
+	return buf.Bytes()
+}
+
+func (p *ServerboundConfigurationClientInformation) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Language.Marshal())
+	buf.Write(p.ViewDistance.Marshal())
+	buf.Write(p.ChatMode.Marshal())
+	buf.Write(p.ChatColors.Marshal())
+	buf.Write(p.SkinParts.Marshal())
+	buf.Write(p.MainHand.Marshal())
+	buf.Write(p.TextFiltering.Marshal())
+	buf.Write(p.ServerListings.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundConfigurationPluginMessage) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Channel.Marshal())
+	buf.Write(p.Data.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundConfigurationFinishAck) Serialize() []byte {
+	var buf bytes.Buffer
 	return buf.Bytes()
 }
 
@@ -124,6 +166,66 @@ func (p *ServerboundLoginEncryptionResponse) Deserialize(b []byte) error {
 	return nil
 }
 
+func (p *ServerboundLoginAck) Deserialize(_ []byte) error {
+	return nil
+}
+
+func (p *ServerboundConfigurationClientInformation) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Language, _, err = types.ReadString(r)
+	if err != nil {
+		return err
+	}
+	p.ViewDistance, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.ChatMode, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.ChatColors, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.SkinParts, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.MainHand, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.TextFiltering, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.ServerListings, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ServerboundConfigurationPluginMessage) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Channel, _, err = types.ReadString(r)
+	if err != nil {
+		return err
+	}
+	p.Data, _, err = types.ReadData(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ServerboundConfigurationFinishAck) Deserialize(_ []byte) error {
+	return nil
+}
+
 func (*ServerboundHandshake) ID() int {
 	return 0
 }
@@ -144,6 +246,22 @@ func (*ServerboundLoginEncryptionResponse) ID() int {
 	return 1
 }
 
+func (*ServerboundLoginAck) ID() int {
+	return 3
+}
+
+func (*ServerboundConfigurationClientInformation) ID() int {
+	return 0
+}
+
+func (*ServerboundConfigurationPluginMessage) ID() int {
+	return 1
+}
+
+func (*ServerboundConfigurationFinishAck) ID() int {
+	return 2
+}
+
 func (*ServerboundHandshake) State() protocol.State {
 	return 0
 }
@@ -162,4 +280,20 @@ func (*ServerboundLoginStart) State() protocol.State {
 
 func (*ServerboundLoginEncryptionResponse) State() protocol.State {
 	return 2
+}
+
+func (*ServerboundLoginAck) State() protocol.State {
+	return 2
+}
+
+func (*ServerboundConfigurationClientInformation) State() protocol.State {
+	return 3
+}
+
+func (*ServerboundConfigurationPluginMessage) State() protocol.State {
+	return 3
+}
+
+func (*ServerboundConfigurationFinishAck) State() protocol.State {
+	return 3
 }

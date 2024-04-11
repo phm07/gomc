@@ -1,6 +1,8 @@
 package packet
 
-import "gomc/src/protocol/types"
+import (
+	"gomc/src/protocol/types"
+)
 
 //go:generate go run generation/gen.go -- $GOFILE
 
@@ -24,4 +26,19 @@ type ClientboundLoginEncryptionRequest struct {
 	ServerID    types.String
 	PublicKey   types.ByteBuf
 	VerifyToken types.ByteBuf
+}
+
+//packet:2:2
+type ClientboundLoginSuccess struct {
+	UUID     types.UUID
+	Username types.String
+	Zero     types.VarInt
+}
+
+//packet:3:2
+type ClientboundConfigurationFinish struct{}
+
+//packet:3:5
+type ClientboundConfigurationRegistryData struct {
+	RegistryDataNBT types.Data
 }

@@ -6,4 +6,6 @@ const (
 	StateHandshaking State = iota
 	StateStatus
 	StateLogin
+	StateConfiguration
+	StatePlay
 )

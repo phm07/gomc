@@ -34,6 +34,25 @@ func (p *ClientboundLoginEncryptionRequest) Serialize() []byte {
 	return buf.Bytes()
 }
 
+func (p *ClientboundLoginSuccess) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.UUID.Marshal())
+	buf.Write(p.Username.Marshal())
+	buf.Write(p.Zero.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ClientboundConfigurationFinish) Serialize() []byte {
+	var buf bytes.Buffer
+	return buf.Bytes()
+}
+
+func (p *ClientboundConfigurationRegistryData) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.RegistryDataNBT.Marshal())
+	return buf.Bytes()
+}
+
 func (p *ClientboundStatusResponse) Deserialize(b []byte) error {
 	var err error
 	r := bytes.NewReader(b)
@@ -82,6 +101,38 @@ func (p *ClientboundLoginEncryptionRequest) Deserialize(b []byte) error {
 	return nil
 }
 
+func (p *ClientboundLoginSuccess) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.UUID, _, err = types.ReadUUID(r)
+	if err != nil {
+		return err
+	}
+	p.Username, _, err = types.ReadString(r)
+	if err != nil {
+		return err
+	}
+	p.Zero, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundConfigurationFinish) Deserialize(_ []byte) error {
+	return nil
+}
+
+func (p *ClientboundConfigurationRegistryData) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.RegistryDataNBT, _, err = types.ReadData(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (*ClientboundStatusResponse) ID() int {
 	return 0
 }
@@ -98,6 +149,18 @@ func (*ClientboundLoginEncryptionRequest) ID() int {
 	return 1
 }
 
+func (*ClientboundLoginSuccess) ID() int {
+	return 2
+}
+
+func (*ClientboundConfigurationFinish) ID() int {
+	return 2
+}
+
+func (*ClientboundConfigurationRegistryData) ID() int {
+	return 5
+}
+
 func (*ClientboundStatusResponse) State() protocol.State {
 	return 1
 }
@@ -112,4 +175,16 @@ func (*ClientboundLoginDisconnect) State() protocol.State {
 
 func (*ClientboundLoginEncryptionRequest) State() protocol.State {
 	return 2
+}
+
+func (*ClientboundLoginSuccess) State() protocol.State {
+	return 2
+}
+
+func (*ClientboundConfigurationFinish) State() protocol.State {
+	return 3
+}
+
+func (*ClientboundConfigurationRegistryData) State() protocol.State {
+	return 3
 }

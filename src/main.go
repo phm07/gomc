@@ -13,6 +13,7 @@ import (
 	"gomc/src/protocol"
 	"gomc/src/protocol/packet"
 	"gomc/src/protocol/types"
+	"gomc/src/registry"
 	"gomc/src/session"
 	"gomc/src/status"
 	"io"
@@ -70,13 +71,13 @@ func handleRequest(c *connection.Connection) {
 			if errors.Is(err, io.EOF) {
 				return
 			}
-			tracerr.PrintSourceColor(err)
-			return
+			log.Printf("error while reading packet: %s\n", err)
+			continue
 		}
 
 		if err := handlePacket(c, p); err != nil {
 			tracerr.PrintSourceColor(err)
-			return
+			continue
 		}
 	}
 }
@@ -152,11 +153,27 @@ func handlePacket(c *connection.Connection, p packet.SerializablePacket) error {
 			return c.Close()
 		}
 
-		err = c.SendPacket(&packet.ClientboundLoginDisconnect{
-			Reason: `{"text":"test"}`,
+		err = c.SendPacket(&packet.ClientboundLoginSuccess{
+			Username: types.String(c.Profile.Name),
+			UUID:     c.Profile.Id[:],
 		})
-	}
 
+	case *packet.ServerboundLoginAck:
+		c.State = protocol.StateConfiguration
+
+	case *packet.ServerboundConfigurationClientInformation:
+		err := c.SendPacket(&packet.ClientboundConfigurationRegistryData{RegistryDataNBT: registry.RegistryNBTBytes})
+		if err != nil {
+			return err
+		}
+		return c.SendPacket(&packet.ClientboundConfigurationFinish{})
+
+	case *packet.ServerboundConfigurationPluginMessage:
+		// idc
+
+	case *packet.ServerboundConfigurationFinishAck:
+		c.State = protocol.StatePlay
+	}
 	return nil
 }
 
