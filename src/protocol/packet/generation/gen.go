@@ -14,8 +14,9 @@ import (
 )
 
 type SerializableField struct {
-	Name string
-	Type string
+	Name  string
+	Type  string
+	Slice bool
 }
 
 type Packet struct {
@@ -85,11 +86,21 @@ func parse(filename string) ([]Packet, error) {
 		}
 		var fields []SerializableField
 		for _, field := range st.Fields.List {
-			if sel, ok := field.Type.(*ast.SelectorExpr); ok {
-				fields = append(fields, SerializableField{
-					Name: field.Names[0].Name,
-					Type: sel.Sel.Name,
-				})
+			for _, name := range field.Names {
+				if sel, ok := field.Type.(*ast.SelectorExpr); ok {
+					fields = append(fields, SerializableField{
+						Name: name.Name,
+						Type: sel.Sel.Name,
+					})
+				} else if arr, ok := field.Type.(*ast.ArrayType); ok {
+					if sel, ok := arr.Elt.(*ast.SelectorExpr); ok {
+						fields = append(fields, SerializableField{
+							Name:  name.Name,
+							Type:  sel.Sel.Name,
+							Slice: true,
+						})
+					}
+				}
 			}
 		}
 		packets = append(packets, Packet{
@@ -108,15 +119,15 @@ func parsePacketID(comment string) (int, int, error) {
 	if len(parts) != 3 {
 		return 0, 0, errors.New("invalid packet id: " + comment)
 	}
-	state, err := strconv.Atoi(parts[1])
+	state, err := strconv.ParseInt(parts[1], 16, 32)
 	if err != nil {
 		return 0, 0, err
 	}
-	id, err := strconv.Atoi(parts[2])
+	id, err := strconv.ParseInt(parts[2], 16, 32)
 	if err != nil {
 		return 0, 0, err
 	}
-	return state, id, nil
+	return int(state), int(id), nil
 }
 
 func generate(packets []Packet) *jen.File {
@@ -143,8 +154,15 @@ func generate(packets []Packet) *jen.File {
 		var code []jen.Code
 		code = append(code, jen.Var().Id("buf").Qual("bytes", "Buffer"))
 		for _, field := range p.Fields {
-			code = append(code, jen.Id("buf").Dot("Write").
-				Parens(jen.Id(fmt.Sprintf("p.%s.Marshal()", field.Name))))
+			if field.Slice {
+				code = append(code, jen.Id("buf").Dot("Write").Parens(jen.Qual("gomc/src/protocol/types",
+					"VarInt").Parens(jen.Len(jen.Id("p").Dot(field.Name))).Dot("Marshal").Parens(nil)))
+				code = append(code, jen.For(jen.List(jen.Id("_"), jen.Id("v")).Op(":=").Range().Id("p").
+					Dot(field.Name)).Block(jen.Id("buf").Dot("Write").Parens(jen.Id("v").Dot("Marshal").Parens(nil))))
+			} else {
+				code = append(code, jen.Id("buf").Dot("Write").
+					Parens(jen.Id(fmt.Sprintf("p.%s.Marshal()", field.Name))))
+			}
 		}
 		code = append(code, jen.Return(jen.Id("buf").Dot("Bytes").Parens(nil)))
 		f.Func().Parens(jen.Id("p").Id("*" + p.Name)).Id("Serialize").
@@ -160,11 +178,26 @@ func generate(packets []Packet) *jen.File {
 			code = append(code, jen.Id("r").Op(":=").Qual("bytes", "NewReader").Parens(jen.Id("b")))
 		}
 		for _, field := range p.Fields {
-			code = append(code, jen.List(jen.Id("p").Dot(field.Name), jen.Id("_"), jen.Id("err")).
-				Op("=").Qual("gomc/src/protocol/types", "Read"+field.Type).Parens(jen.Id("r")))
-			code = append(code, jen.If(jen.Id("err").Op("!=").Nil().Block(
-				jen.Return(jen.Id("err")),
-			)))
+			if field.Slice {
+				code = append(code, jen.Var().Id("n"+field.Name).Qual("gomc/src/protocol/types", "VarInt").Line().
+					List(jen.Id("n"+field.Name), jen.Id("_"), jen.Id("err")).Op("=").
+					Qual("gomc/src/protocol/types", "ReadVarInt").Parens(jen.Id("r")).Line().
+					If(jen.Id("err").Op("!=").Nil()).Block(jen.Return(jen.Id("err"))))
+				code = append(code, jen.Id("p").Dot(field.Name).Op("=").Make(jen.Index(nil).
+					Qual("gomc/src/protocol/types", field.Type), jen.Id("n"+field.Name)).Line().
+					For(jen.Id("i").Op(":=").Lit(0), jen.Id("i").Op("<").
+						Len(jen.Id("p").Dot(field.Name)), jen.Id("i").Op("++")).Block(
+					jen.List(jen.Id("p").Dot(field.Name).Index(jen.Id("i")), jen.Id("_"), jen.Id("err")).
+						Op("=").Qual("gomc/src/protocol/types", "Read"+field.Type).Parens(jen.Id("r")),
+					jen.If(jen.Id("err").Op("!=").Nil()).Block(jen.Return(jen.Id("err"))),
+				))
+			} else {
+				code = append(code, jen.List(jen.Id("p").Dot(field.Name), jen.Id("_"), jen.Id("err")).
+					Op("=").Qual("gomc/src/protocol/types", "Read"+field.Type).Parens(jen.Id("r")))
+				code = append(code, jen.If(jen.Id("err").Op("!=").Nil().Block(
+					jen.Return(jen.Id("err")),
+				)))
+			}
 		}
 		code = append(code, jen.Return(jen.Nil()))
 		f.Func().Parens(jen.Id("p").Id("*" + p.Name)).Id("Deserialize").
@@ -173,7 +206,7 @@ func generate(packets []Packet) *jen.File {
 
 	for _, p := range packets {
 		f.Func().Parens(jen.Id("*" + p.Name)).Id("ID").Parens(nil).
-			Id("int").Block(jen.Return().Id(strconv.Itoa(p.Id))).Line()
+			Id("int").Block(jen.Return().Lit(p.Id)).Line()
 	}
 
 	for _, p := range packets {

@@ -42,3 +42,72 @@ type ClientboundConfigurationFinish struct{}
 type ClientboundConfigurationRegistryData struct {
 	RegistryDataNBT types.Data
 }
+
+const (
+	ClientboundPlayGameEventWaitForChunks types.Byte = 13
+)
+
+//packet:4:20
+type ClientboundPlayGameEvent struct {
+	Event types.Byte
+	Value types.Float
+}
+
+//packet:4:25
+type ClientboundPlayChunkData struct {
+	ChunkX, ChunkZ       types.Int
+	Heightmaps           types.Data
+	Data                 types.ByteBuf
+	NumBlockEntities     types.VarInt
+	SkyLightMask         types.BitSet
+	BlockLightMask       types.BitSet
+	EmptySkyLightMask    types.BitSet
+	EmptyBlockLightMask  types.BitSet
+	SkyLightArrayCount   types.VarInt
+	BlockLightArrayCount types.VarInt
+}
+
+//packet:4:25
+type ClientboundPlayChunkData2 struct {
+	Data types.Data
+}
+
+//packet:4:29
+type ClientboundPlayLogin struct {
+	EntityID            types.Int
+	IsHardcore          types.Boolean
+	DimensionNames      []types.String
+	MaxPlayers          types.VarInt
+	ViewDistance        types.VarInt
+	SimulationDistance  types.VarInt
+	ReducedDebugInfo    types.Boolean
+	EnableRespawnScreen types.Boolean
+	LimitedCrafting     types.Boolean
+	DimensionType       types.String
+	DimensionName       types.String
+	HashedSeed          types.Long
+	GameMode            types.Byte
+	PreviousGameMode    types.Byte
+	IsDebug             types.Boolean
+	IsFlat              types.Boolean
+	HasDeathLocation    types.Boolean
+	PortalCooldown      types.VarInt
+}
+
+//packet:4:3e
+type ClientboundPlaySynchronizePosition struct {
+	X, Y, Z    types.Double
+	Yaw, Pitch types.Float
+	Flags      types.Byte
+	TeleportID types.VarInt
+}
+
+//packet:4:52
+type ClientboundPlaySetCenterChunk struct {
+	ChunkX, ChunkZ types.VarInt
+}
+
+//packet:4:24
+type ClientboundPlayKeepAlive struct {
+	KeepAliveId types.Long
+}

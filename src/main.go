@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/ztrue/tracerr"
 	"gomc/src/connection"
+	"gomc/src/data"
 	"gomc/src/encrypt"
 	"gomc/src/protocol"
 	"gomc/src/protocol/packet"
@@ -16,10 +17,19 @@ import (
 	"gomc/src/registry"
 	"gomc/src/session"
 	"gomc/src/status"
+	"gomc/src/world"
 	"io"
 	"log"
 	"net"
+	"time"
 )
+
+var w = world.NewWorld(384, &world.RandomGenerator{
+	Blocks: []data.Block{data.DiamondOre, data.CoalOre, data.RedstoneOre, data.Stone, data.Dirt, data.DiamondBlock},
+	Height: 128,
+})
+
+const viewDistance = 3
 
 func main() {
 	if err := loadConfig(); err != nil {
@@ -173,8 +183,145 @@ func handlePacket(c *connection.Connection, p packet.SerializablePacket) error {
 
 	case *packet.ServerboundConfigurationFinishAck:
 		c.State = protocol.StatePlay
+
+		err := c.SendPacket(&packet.ClientboundPlayLogin{
+			EntityID:            0,
+			IsHardcore:          false,
+			DimensionNames:      []types.String{"world"},
+			MaxPlayers:          0,
+			ViewDistance:        8,
+			SimulationDistance:  8,
+			ReducedDebugInfo:    false,
+			EnableRespawnScreen: false,
+			LimitedCrafting:     false,
+			DimensionType:       "minecraft:overworld",
+			DimensionName:       "world",
+			HashedSeed:          0,
+			GameMode:            0,
+			PreviousGameMode:    -1,
+			IsDebug:             false,
+			IsFlat:              true,
+			HasDeathLocation:    false,
+			PortalCooldown:      0,
+		})
+		if err != nil {
+			return err
+		}
+		return c.SendPacket(&packet.ClientboundPlaySynchronizePosition{
+			X:          0,
+			Y:          66,
+			Z:          0,
+			Yaw:        0,
+			Pitch:      0,
+			Flags:      0,
+			TeleportID: 0,
+		})
+
+	case *packet.ServerboundConfirmTeleport:
+		err := c.SendPacket(&packet.ClientboundPlayPlayerInfoUpdate{
+			Players: []*packet.ClientboundPlayPlayerInfoUpdatePlayer{
+				{
+					UUID: c.Profile.Id[:],
+					Actions: []packet.ClientboundPlayPlayerInfoUpdateAction{
+						&packet.ClientboundPlayPlayerInfoUpdateActionAddPlayer{
+							Name:       types.String(c.Profile.Name),
+							Properties: []*packet.ClientboundPlayPlayerInfoUpdateActionAddPlayerProperty{},
+						},
+					},
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+		err = c.SendPacket(&packet.ClientboundPlayGameEvent{
+			Event: packet.ClientboundPlayGameEventWaitForChunks,
+		})
+		if err != nil {
+			return err
+		}
+		err = c.SendPacket(&packet.ClientboundPlaySetCenterChunk{
+			ChunkX: 0,
+			ChunkZ: 0,
+		})
+		if err != nil {
+			return err
+		}
+
+		for x := -viewDistance; x <= viewDistance; x++ {
+			for z := -viewDistance; z <= viewDistance; z++ {
+				ch := w.GetOrGenerateChunk(x, z)
+				err = sendChunk(c, ch)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		go func() {
+			t := time.NewTicker(10 * time.Second)
+			for range t.C {
+				if c.Closed {
+					return
+				}
+				_ = c.SendPacket(&packet.ClientboundPlayKeepAlive{
+					KeepAliveId: types.Long(time.Now().Unix()),
+				})
+			}
+		}()
+
+	case *packet.ServerboundPlayKeepAlive:
+		return c.SendPacket(&packet.ClientboundPlayKeepAlive{
+			KeepAliveId: p.KeepAliveId,
+		})
+
+	case *packet.ServerboundPlayUpdatePosition:
+		chunkX, chunkZ := int(p.X)>>4, int(p.Z)>>4
+		prevChunkX, prevChunkZ := int(c.X)>>4, int(c.Z)>>4
+		c.X, c.Y, c.Z = float64(p.X), float64(p.Y), float64(p.Z)
+		if chunkX != prevChunkX || chunkZ != prevChunkZ {
+			err := c.SendPacket(&packet.ClientboundPlaySetCenterChunk{
+				ChunkX: types.VarInt(chunkX),
+				ChunkZ: types.VarInt(chunkZ),
+			})
+			if err != nil {
+				return err
+			}
+			for x := chunkX - viewDistance; x <= chunkX+viewDistance; x++ {
+				for z := chunkZ - viewDistance; z <= chunkZ+viewDistance; z++ {
+					if x < prevChunkX-viewDistance || x > prevChunkX+viewDistance || z < prevChunkZ-viewDistance || z > prevChunkZ+viewDistance {
+						ch := w.GetOrGenerateChunk(x, z)
+						err = sendChunk(c, ch)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
 	}
 	return nil
+}
+
+func sendChunk(c *connection.Connection, ch *world.Chunk) error {
+	mask := types.NewBitSet(26)
+	mask2 := types.NewBitSet(26)
+	for i := 0; i < 26; i++ {
+		mask2.SetBit(i, true)
+	}
+	return c.SendPacket(&packet.ClientboundPlayChunkData{
+		ChunkX:               types.Int(ch.X),
+		ChunkZ:               types.Int(ch.Z),
+		Heightmaps:           ch.HeightMap().Marshal(),
+		Data:                 ch.Marshal(),
+		NumBlockEntities:     0,
+		SkyLightMask:         mask,
+		BlockLightMask:       mask,
+		EmptySkyLightMask:    mask2,
+		EmptyBlockLightMask:  mask2,
+		SkyLightArrayCount:   0,
+		BlockLightArrayCount: 0,
+	})
 }
 
 func loadConfig() error {

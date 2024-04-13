@@ -1,20 +1,18 @@
 package types
 
-import "io"
+import (
+	"gomc/src/util"
+	"io"
+)
 
 type Long int64
 
 func (l Long) Marshal() []byte {
-	b := make([]byte, 8)
-	for i := 0; i < 8; i++ {
-		b[i] = byte(l >> (i * 8))
-	}
-	return b
+	return util.Int64ToBytes(int64(l))
 }
 
 func ReadLong(r io.Reader) (Long, int, error) {
 	var (
-		l Long
 		b = make([]byte, 8)
 		n int
 	)
@@ -23,8 +21,5 @@ func ReadLong(r io.Reader) (Long, int, error) {
 	if err != nil {
 		return 0, n, err
 	}
-	for i := 0; i < 8; i++ {
-		l |= Long(b[i]) << (i * 8)
-	}
-	return l, n, nil
+	return Long(util.Int64FromBytes(b)), n, nil
 }

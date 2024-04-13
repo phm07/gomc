@@ -15,7 +15,7 @@ type SerializablePacket interface {
 var serverbound = make(map[protocol.State]map[int]func() SerializablePacket)
 
 func init() {
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 5; i++ {
 		serverbound[protocol.State(i)] = make(map[int]func() SerializablePacket)
 	}
 }

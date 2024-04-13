@@ -3,6 +3,7 @@ package nbt
 import (
 	"bytes"
 	"fmt"
+	"gomc/src/util"
 	"math"
 	"strings"
 )
@@ -56,8 +57,7 @@ func (t *ShortTag) Marshal() []byte {
 	if t.Name != "" {
 		writeString(&buf, t.Name)
 	}
-	buf.WriteByte(byte(t.Data >> 8))
-	buf.WriteByte(byte(t.Data & 0xff))
+	buf.Write(util.Int16ToBytes(t.Data))
 	return buf.Bytes()
 }
 
@@ -84,9 +84,7 @@ func (t *IntTag) Marshal() []byte {
 	if t.Name != "" {
 		writeString(&buf, t.Name)
 	}
-	for i := 3; i >= 0; i-- {
-		buf.WriteByte(byte((t.Data >> (i << 3)) & 0xff))
-	}
+	buf.Write(util.Int32ToBytes(t.Data))
 	return buf.Bytes()
 }
 
@@ -113,9 +111,7 @@ func (t *LongTag) Marshal() []byte {
 	if t.Name != "" {
 		writeString(&buf, t.Name)
 	}
-	for i := 7; i >= 0; i-- {
-		buf.WriteByte(byte((t.Data >> (i << 3)) & 0xff))
-	}
+	buf.Write(util.Int64ToBytes(t.Data))
 	return buf.Bytes()
 }
 
@@ -142,10 +138,7 @@ func (t *FloatTag) Marshal() []byte {
 	if t.Name != "" {
 		writeString(&buf, t.Name)
 	}
-	d := math.Float32bits(t.Data)
-	for i := 3; i >= 0; i-- {
-		buf.WriteByte(byte((d >> (i << 3)) & 0xff))
-	}
+	buf.Write(util.Uint32ToBytes(math.Float32bits(t.Data)))
 	return buf.Bytes()
 }
 
@@ -172,10 +165,7 @@ func (t *DoubleTag) Marshal() []byte {
 	if t.Name != "" {
 		writeString(&buf, t.Name)
 	}
-	d := math.Float64bits(t.Data)
-	for i := 7; i >= 0; i-- {
-		buf.WriteByte(byte((d >> (i << 3)) & 0xff))
-	}
+	buf.Write(util.Uint64ToBytes(math.Float64bits(t.Data)))
 	return buf.Bytes()
 }
 
@@ -202,10 +192,7 @@ func (t *ByteArrayTag) Marshal() []byte {
 	if t.Name != "" {
 		writeString(&buf, t.Name)
 	}
-	d := len(t.Data)
-	for i := 3; i >= 0; i-- {
-		buf.WriteByte(byte((d >> (i << 3)) & 0xff))
-	}
+	buf.Write(util.Int32ToBytes(int32(len(t.Data))))
 	buf.Write(t.Data)
 	return buf.Bytes()
 }
@@ -275,10 +262,7 @@ func (t *ListTag[T]) Marshal() []byte {
 	} else {
 		buf.WriteByte(0)
 	}
-	d := len(t.Data)
-	for i := 3; i >= 0; i-- {
-		buf.WriteByte(byte((d >> (i << 3)) & 0xff))
-	}
+	buf.Write(util.Int32ToBytes(int32(len(t.Data))))
 	for _, e := range t.Data {
 		buf.Write(e.Marshal()[1:])
 	}
@@ -347,8 +331,6 @@ func (*CompoundTag) ID() byte {
 }
 
 func writeString(buf *bytes.Buffer, s string) {
-	l := uint16(len(s))
-	buf.WriteByte(byte(l >> 8))
-	buf.WriteByte(byte(l & 0xff))
+	buf.Write(util.Uint16ToBytes(uint16(len(s))))
 	buf.WriteString(s)
 }

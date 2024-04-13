@@ -2,7 +2,7 @@ package types
 
 import "io"
 
-type Byte byte
+type Byte int8
 
 func (b Byte) Marshal() []byte {
 	return []byte{byte(b)}

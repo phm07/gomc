@@ -36,6 +36,15 @@ func init() {
 	serverbound[3][2] = func() SerializablePacket {
 		return &ServerboundConfigurationFinishAck{}
 	}
+	serverbound[4][0] = func() SerializablePacket {
+		return &ServerboundConfirmTeleport{}
+	}
+	serverbound[4][21] = func() SerializablePacket {
+		return &ServerboundPlayKeepAlive{}
+	}
+	serverbound[4][23] = func() SerializablePacket {
+		return &ServerboundPlayUpdatePosition{}
+	}
 }
 
 func (p *ServerboundHandshake) Serialize() []byte {
@@ -99,6 +108,27 @@ func (p *ServerboundConfigurationPluginMessage) Serialize() []byte {
 
 func (p *ServerboundConfigurationFinishAck) Serialize() []byte {
 	var buf bytes.Buffer
+	return buf.Bytes()
+}
+
+func (p *ServerboundConfirmTeleport) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.TeleportID.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundPlayKeepAlive) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.KeepAliveId.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundPlayUpdatePosition) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.X.Marshal())
+	buf.Write(p.Y.Marshal())
+	buf.Write(p.Z.Marshal())
+	buf.Write(p.OnGround.Marshal())
 	return buf.Bytes()
 }
 
@@ -185,7 +215,7 @@ func (p *ServerboundConfigurationClientInformation) Deserialize(b []byte) error 
 	if err != nil {
 		return err
 	}
-	p.ChatColors, _, err = types.ReadByte(r)
+	p.ChatColors, _, err = types.ReadBoolean(r)
 	if err != nil {
 		return err
 	}
@@ -197,11 +227,11 @@ func (p *ServerboundConfigurationClientInformation) Deserialize(b []byte) error 
 	if err != nil {
 		return err
 	}
-	p.TextFiltering, _, err = types.ReadByte(r)
+	p.TextFiltering, _, err = types.ReadBoolean(r)
 	if err != nil {
 		return err
 	}
-	p.ServerListings, _, err = types.ReadByte(r)
+	p.ServerListings, _, err = types.ReadBoolean(r)
 	if err != nil {
 		return err
 	}
@@ -223,6 +253,48 @@ func (p *ServerboundConfigurationPluginMessage) Deserialize(b []byte) error {
 }
 
 func (p *ServerboundConfigurationFinishAck) Deserialize(_ []byte) error {
+	return nil
+}
+
+func (p *ServerboundConfirmTeleport) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.TeleportID, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ServerboundPlayKeepAlive) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.KeepAliveId, _, err = types.ReadLong(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ServerboundPlayUpdatePosition) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.X, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.Y, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.Z, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.OnGround, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -262,6 +334,18 @@ func (*ServerboundConfigurationFinishAck) ID() int {
 	return 2
 }
 
+func (*ServerboundConfirmTeleport) ID() int {
+	return 0
+}
+
+func (*ServerboundPlayKeepAlive) ID() int {
+	return 21
+}
+
+func (*ServerboundPlayUpdatePosition) ID() int {
+	return 23
+}
+
 func (*ServerboundHandshake) State() protocol.State {
 	return 0
 }
@@ -296,4 +380,16 @@ func (*ServerboundConfigurationPluginMessage) State() protocol.State {
 
 func (*ServerboundConfigurationFinishAck) State() protocol.State {
 	return 3
+}
+
+func (*ServerboundConfirmTeleport) State() protocol.State {
+	return 4
+}
+
+func (*ServerboundPlayKeepAlive) State() protocol.State {
+	return 4
+}
+
+func (*ServerboundPlayUpdatePosition) State() protocol.State {
+	return 4
 }

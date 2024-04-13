@@ -42,11 +42,11 @@ type ServerboundConfigurationClientInformation struct {
 	Language       types.String
 	ViewDistance   types.Byte
 	ChatMode       types.VarInt
-	ChatColors     types.Byte
+	ChatColors     types.Boolean
 	SkinParts      types.Byte
 	MainHand       types.VarInt
-	TextFiltering  types.Byte
-	ServerListings types.Byte
+	TextFiltering  types.Boolean
+	ServerListings types.Boolean
 }
 
 //packet:3:1
@@ -57,3 +57,19 @@ type ServerboundConfigurationPluginMessage struct {
 
 //packet:3:2
 type ServerboundConfigurationFinishAck struct{}
+
+//packet:4:0
+type ServerboundConfirmTeleport struct {
+	TeleportID types.VarInt
+}
+
+//packet:4:15
+type ServerboundPlayKeepAlive struct {
+	KeepAliveId types.Long
+}
+
+//packet:4:17
+type ServerboundPlayUpdatePosition struct {
+	X, Y, Z  types.Double
+	OnGround types.Boolean
+}

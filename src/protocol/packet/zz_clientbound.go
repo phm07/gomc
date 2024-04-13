@@ -53,6 +53,86 @@ func (p *ClientboundConfigurationRegistryData) Serialize() []byte {
 	return buf.Bytes()
 }
 
+func (p *ClientboundPlayGameEvent) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Event.Marshal())
+	buf.Write(p.Value.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ClientboundPlayChunkData) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.ChunkX.Marshal())
+	buf.Write(p.ChunkZ.Marshal())
+	buf.Write(p.Heightmaps.Marshal())
+	buf.Write(p.Data.Marshal())
+	buf.Write(p.NumBlockEntities.Marshal())
+	buf.Write(p.SkyLightMask.Marshal())
+	buf.Write(p.BlockLightMask.Marshal())
+	buf.Write(p.EmptySkyLightMask.Marshal())
+	buf.Write(p.EmptyBlockLightMask.Marshal())
+	buf.Write(p.SkyLightArrayCount.Marshal())
+	buf.Write(p.BlockLightArrayCount.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ClientboundPlayChunkData2) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Data.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ClientboundPlayLogin) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.EntityID.Marshal())
+	buf.Write(p.IsHardcore.Marshal())
+	buf.Write(types.VarInt(len(p.DimensionNames)).Marshal())
+	for _, v := range p.DimensionNames {
+		buf.Write(v.Marshal())
+	}
+	buf.Write(p.MaxPlayers.Marshal())
+	buf.Write(p.ViewDistance.Marshal())
+	buf.Write(p.SimulationDistance.Marshal())
+	buf.Write(p.ReducedDebugInfo.Marshal())
+	buf.Write(p.EnableRespawnScreen.Marshal())
+	buf.Write(p.LimitedCrafting.Marshal())
+	buf.Write(p.DimensionType.Marshal())
+	buf.Write(p.DimensionName.Marshal())
+	buf.Write(p.HashedSeed.Marshal())
+	buf.Write(p.GameMode.Marshal())
+	buf.Write(p.PreviousGameMode.Marshal())
+	buf.Write(p.IsDebug.Marshal())
+	buf.Write(p.IsFlat.Marshal())
+	buf.Write(p.HasDeathLocation.Marshal())
+	buf.Write(p.PortalCooldown.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ClientboundPlaySynchronizePosition) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.X.Marshal())
+	buf.Write(p.Y.Marshal())
+	buf.Write(p.Z.Marshal())
+	buf.Write(p.Yaw.Marshal())
+	buf.Write(p.Pitch.Marshal())
+	buf.Write(p.Flags.Marshal())
+	buf.Write(p.TeleportID.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ClientboundPlaySetCenterChunk) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.ChunkX.Marshal())
+	buf.Write(p.ChunkZ.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ClientboundPlayKeepAlive) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.KeepAliveId.Marshal())
+	return buf.Bytes()
+}
+
 func (p *ClientboundStatusResponse) Deserialize(b []byte) error {
 	var err error
 	r := bytes.NewReader(b)
@@ -133,6 +213,224 @@ func (p *ClientboundConfigurationRegistryData) Deserialize(b []byte) error {
 	return nil
 }
 
+func (p *ClientboundPlayGameEvent) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Event, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.Value, _, err = types.ReadFloat(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundPlayChunkData) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.ChunkX, _, err = types.ReadInt(r)
+	if err != nil {
+		return err
+	}
+	p.ChunkZ, _, err = types.ReadInt(r)
+	if err != nil {
+		return err
+	}
+	p.Heightmaps, _, err = types.ReadData(r)
+	if err != nil {
+		return err
+	}
+	p.Data, _, err = types.ReadByteBuf(r)
+	if err != nil {
+		return err
+	}
+	p.NumBlockEntities, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.SkyLightMask, _, err = types.ReadBitSet(r)
+	if err != nil {
+		return err
+	}
+	p.BlockLightMask, _, err = types.ReadBitSet(r)
+	if err != nil {
+		return err
+	}
+	p.EmptySkyLightMask, _, err = types.ReadBitSet(r)
+	if err != nil {
+		return err
+	}
+	p.EmptyBlockLightMask, _, err = types.ReadBitSet(r)
+	if err != nil {
+		return err
+	}
+	p.SkyLightArrayCount, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.BlockLightArrayCount, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundPlayChunkData2) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Data, _, err = types.ReadData(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundPlayLogin) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.EntityID, _, err = types.ReadInt(r)
+	if err != nil {
+		return err
+	}
+	p.IsHardcore, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
+	var nDimensionNames types.VarInt
+	nDimensionNames, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.DimensionNames = make([]types.String, nDimensionNames)
+	for i := 0; i < len(p.DimensionNames); i++ {
+		p.DimensionNames[i], _, err = types.ReadString(r)
+		if err != nil {
+			return err
+		}
+	}
+	p.MaxPlayers, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.ViewDistance, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.SimulationDistance, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.ReducedDebugInfo, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
+	p.EnableRespawnScreen, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
+	p.LimitedCrafting, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
+	p.DimensionType, _, err = types.ReadString(r)
+	if err != nil {
+		return err
+	}
+	p.DimensionName, _, err = types.ReadString(r)
+	if err != nil {
+		return err
+	}
+	p.HashedSeed, _, err = types.ReadLong(r)
+	if err != nil {
+		return err
+	}
+	p.GameMode, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.PreviousGameMode, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.IsDebug, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
+	p.IsFlat, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
+	p.HasDeathLocation, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
+	p.PortalCooldown, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundPlaySynchronizePosition) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.X, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.Y, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.Z, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.Yaw, _, err = types.ReadFloat(r)
+	if err != nil {
+		return err
+	}
+	p.Pitch, _, err = types.ReadFloat(r)
+	if err != nil {
+		return err
+	}
+	p.Flags, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.TeleportID, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundPlaySetCenterChunk) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.ChunkX, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.ChunkZ, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundPlayKeepAlive) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.KeepAliveId, _, err = types.ReadLong(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (*ClientboundStatusResponse) ID() int {
 	return 0
 }
@@ -161,6 +459,34 @@ func (*ClientboundConfigurationRegistryData) ID() int {
 	return 5
 }
 
+func (*ClientboundPlayGameEvent) ID() int {
+	return 32
+}
+
+func (*ClientboundPlayChunkData) ID() int {
+	return 37
+}
+
+func (*ClientboundPlayChunkData2) ID() int {
+	return 37
+}
+
+func (*ClientboundPlayLogin) ID() int {
+	return 41
+}
+
+func (*ClientboundPlaySynchronizePosition) ID() int {
+	return 62
+}
+
+func (*ClientboundPlaySetCenterChunk) ID() int {
+	return 82
+}
+
+func (*ClientboundPlayKeepAlive) ID() int {
+	return 36
+}
+
 func (*ClientboundStatusResponse) State() protocol.State {
 	return 1
 }
@@ -187,4 +513,32 @@ func (*ClientboundConfigurationFinish) State() protocol.State {
 
 func (*ClientboundConfigurationRegistryData) State() protocol.State {
 	return 3
+}
+
+func (*ClientboundPlayGameEvent) State() protocol.State {
+	return 4
+}
+
+func (*ClientboundPlayChunkData) State() protocol.State {
+	return 4
+}
+
+func (*ClientboundPlayChunkData2) State() protocol.State {
+	return 4
+}
+
+func (*ClientboundPlayLogin) State() protocol.State {
+	return 4
+}
+
+func (*ClientboundPlaySynchronizePosition) State() protocol.State {
+	return 4
+}
+
+func (*ClientboundPlaySetCenterChunk) State() protocol.State {
+	return 4
+}
+
+func (*ClientboundPlayKeepAlive) State() protocol.State {
+	return 4
 }

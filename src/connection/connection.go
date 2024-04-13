@@ -24,6 +24,7 @@ type Connection struct {
 	VerifyToken     []byte
 	Secret          []byte
 	Profile         *profile.Profile
+	X, Y, Z         float64 // TODO create a proper player object
 }
 
 func NewConnection(conn net.Conn) *Connection {
