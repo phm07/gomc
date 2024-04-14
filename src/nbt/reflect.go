@@ -2,6 +2,7 @@ package nbt
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -21,8 +22,14 @@ func Marshal(v any) Tag {
 			if name == "" {
 				name = ft.Name
 			}
+			var omitempty bool
 			if idx := strings.IndexByte(name, ','); idx != -1 {
+				tags := strings.Split(name[idx+1:], ",")
 				name = name[:idx]
+				omitempty = slices.Contains(tags, "omitempty")
+			}
+			if omitempty && fVal.IsZero() {
+				continue
 			}
 			elem := Marshal(fVal.Interface())
 			// elem.Name = name

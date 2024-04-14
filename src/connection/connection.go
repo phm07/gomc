@@ -11,6 +11,7 @@ import (
 	"gomc/src/protocol/types"
 	"io"
 	"net"
+	"sync"
 )
 
 type Connection struct {
@@ -25,6 +26,7 @@ type Connection struct {
 	Secret          []byte
 	Profile         *profile.Profile
 	X, Y, Z         float64 // TODO create a proper player object
+	mu              *sync.Mutex
 }
 
 func NewConnection(conn net.Conn) *Connection {
@@ -34,6 +36,7 @@ func NewConnection(conn net.Conn) *Connection {
 		Writer: conn,
 		State:  protocol.StateHandshaking,
 		Closed: false,
+		mu:     &sync.Mutex{},
 	}
 }
 
@@ -51,6 +54,8 @@ func (c *Connection) SendPacket(s packet.SerializablePacket) error {
 		PacketID: id,
 		Data:     buf,
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	_, err := c.Write(p.Marshal())
 	return err
 }

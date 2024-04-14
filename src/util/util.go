@@ -58,3 +58,13 @@ func Log2(n int) int {
 	}
 	return r
 }
+
+func Map(v, start, end, min, max float64) float64 {
+	if v < start {
+		return min
+	} else if v > end {
+		return max
+	} else {
+		return ((v-start)/(end-start))*(max-min) + min
+	}
+}

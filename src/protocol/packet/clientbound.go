@@ -63,8 +63,8 @@ type ClientboundPlayChunkData struct {
 	BlockLightMask       types.BitSet
 	EmptySkyLightMask    types.BitSet
 	EmptyBlockLightMask  types.BitSet
-	SkyLightArrayCount   types.VarInt
-	BlockLightArrayCount types.VarInt
+	SkyLight             types.Data
+	BlockLightArrayCount types.Data
 }
 
 //packet:4:25

@@ -2,33 +2,83 @@ package world
 
 import (
 	"bytes"
-	"gomc/src/data"
 	"gomc/src/nbt"
 	"gomc/src/protocol/types"
 	"gomc/src/util"
 )
 
 type Chunk struct {
-	X, Z   int
-	Height int
-	Data   []uint16
+	X, Z     int
+	Height   int
+	Data     []uint16
+	SkyLight []byte
 }
 
 func NewChunk(height, x, z int) *Chunk {
 	return &Chunk{
-		Height: height,
-		X:      x,
-		Z:      z,
-		Data:   make([]uint16, height<<8),
+		Height:   height,
+		X:        x,
+		Z:        z,
+		Data:     make([]uint16, height<<8),
+		SkyLight: make([]byte, height<<7+(1<<12)),
 	}
 }
 
-func (c *Chunk) SetBlock(x, y, z int, block data.Block) {
-	c.Data[(y<<8)+(z<<4)+x] = uint16(block)
+func (c *Chunk) SetSkyLight(x, y, z int, light byte) {
+	idx := ((y << 8) + (z << 4) + x) >> 1
+	if (x & 1) == 0 {
+		c.SkyLight[idx] = (c.SkyLight[idx] & 0xf0) | (light & 0x0f)
+	} else {
+		c.SkyLight[idx] = (c.SkyLight[idx] & 0x0f) | ((light & 0x0f) << 4)
+	}
 }
 
-func (c *Chunk) GetBlock(x, y, z int) data.Block {
-	return data.Block(c.Data[(y<<8)+(z<<4)+x])
+func (c *Chunk) GetSkyLight(x, y, z int) byte {
+	idx := ((y << 8) + (z << 4) + x) >> 1
+	if (x & 1) == 0 {
+		return c.SkyLight[idx] & 0x0f
+	}
+	return c.SkyLight[idx] >> 4
+}
+
+func (c *Chunk) CalculateSkyLight() {
+	obstructed := make([]bool, 256)
+	notObstructed := 256
+	for i := len(c.Data) - 1; i >= 0 && notObstructed > 0; i-- {
+		xz := i & 0xff
+		if obstructed[xz] {
+			continue
+		}
+		light := byte(0xf)
+		idx := i>>1 + 2048
+		if (xz & 1) == 0 {
+			c.SkyLight[idx] = (c.SkyLight[idx] & 0xf0) | (light & 0x0f)
+		} else {
+			c.SkyLight[idx] = (c.SkyLight[idx] & 0x0f) | ((light & 0x0f) << 4)
+		}
+		if c.Data[i] != 0 {
+			obstructed[xz] = true
+			notObstructed--
+		}
+	}
+}
+
+func (c *Chunk) MarshalSkyLight() []byte {
+	var buf bytes.Buffer
+	buf.Write(types.VarInt(len(c.SkyLight) >> 11).Marshal())
+	for i := 0; i < len(c.SkyLight)>>11; i++ {
+		buf.Write(types.VarInt(2048).Marshal())
+		buf.Write(c.SkyLight[i<<11 : (i+1)<<11])
+	}
+	return buf.Bytes()
+}
+
+func (c *Chunk) SetBlockState(x, y, z int, block uint16) {
+	c.Data[(y<<8)+(z<<4)+x] = block
+}
+
+func (c *Chunk) GetBlockState(x, y, z int) uint16 {
+	return c.Data[(y<<8)+(z<<4)+x]
 }
 
 func (c *Chunk) Marshal() []byte {
@@ -99,6 +149,15 @@ func (c *Chunk) HeightMap() nbt.Tag {
 			},
 		},
 	}
+}
+
+func (c *Chunk) GetHeightAt(x int, z int) int {
+	for i := c.Height - 1; i >= 0; i-- {
+		if c.GetBlockState(x, i, z) != 0 {
+			return i
+		}
+	}
+	return 0
 }
 
 func packSection(data []uint16, bpeMin, bpeThresh int) (int, *PalettedContainer) {

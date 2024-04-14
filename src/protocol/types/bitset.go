@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"gomc/src/util"
 	"io"
 )
 
@@ -10,8 +11,9 @@ type BitSet []uint64
 func (b BitSet) Marshal() []byte {
 	res := make([]byte, len(b)<<3)
 	for i, v := range b {
+		l := util.Uint64ToBytes(v)
 		for j := 0; j < 8; j++ {
-			res[(i<<3)+j] = byte(v >> (j << 3))
+			res[(i<<3)+j] = l[j]
 		}
 	}
 	var buf bytes.Buffer
@@ -33,9 +35,7 @@ func ReadBitSet(r io.Reader) (BitSet, int, error) {
 	}
 	res := make(BitSet, length)
 	for i := 0; i < len(res); i++ {
-		for j := 0; j < 8; j++ {
-			res[i] |= uint64(data[(i<<3)+j]) << (j << 3)
-		}
+		res[i] = util.Uint64FromBytes(data[(i << 3):((i + 1) << 3)])
 	}
 	return res, n, nil
 }

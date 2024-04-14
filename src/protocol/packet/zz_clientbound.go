@@ -71,7 +71,7 @@ func (p *ClientboundPlayChunkData) Serialize() []byte {
 	buf.Write(p.BlockLightMask.Marshal())
 	buf.Write(p.EmptySkyLightMask.Marshal())
 	buf.Write(p.EmptyBlockLightMask.Marshal())
-	buf.Write(p.SkyLightArrayCount.Marshal())
+	buf.Write(p.SkyLight.Marshal())
 	buf.Write(p.BlockLightArrayCount.Marshal())
 	return buf.Bytes()
 }
@@ -266,11 +266,11 @@ func (p *ClientboundPlayChunkData) Deserialize(b []byte) error {
 	if err != nil {
 		return err
 	}
-	p.SkyLightArrayCount, _, err = types.ReadVarInt(r)
+	p.SkyLight, _, err = types.ReadData(r)
 	if err != nil {
 		return err
 	}
-	p.BlockLightArrayCount, _, err = types.ReadVarInt(r)
+	p.BlockLightArrayCount, _, err = types.ReadData(r)
 	if err != nil {
 		return err
 	}

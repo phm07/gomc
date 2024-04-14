@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/ztrue/tracerr"
 	"gomc/src/connection"
-	"gomc/src/data"
 	"gomc/src/encrypt"
 	"gomc/src/protocol"
 	"gomc/src/protocol/packet"
@@ -24,12 +23,9 @@ import (
 	"time"
 )
 
-var w = world.NewWorld(384, &world.RandomGenerator{
-	Blocks: []data.Block{data.DiamondOre, data.CoalOre, data.RedstoneOre, data.Stone, data.Dirt, data.DiamondBlock},
-	Height: 128,
-})
+var w = world.NewWorld(384, &world.NaturalGenerator{})
 
-const viewDistance = 3
+const viewDistance = 16
 
 func main() {
 	if err := loadConfig(); err != nil {
@@ -189,7 +185,7 @@ func handlePacket(c *connection.Connection, p packet.SerializablePacket) error {
 			IsHardcore:          false,
 			DimensionNames:      []types.String{"world"},
 			MaxPlayers:          0,
-			ViewDistance:        8,
+			ViewDistance:        viewDistance,
 			SimulationDistance:  8,
 			ReducedDebugInfo:    false,
 			EnableRespawnScreen: false,
@@ -197,7 +193,7 @@ func handlePacket(c *connection.Connection, p packet.SerializablePacket) error {
 			DimensionType:       "minecraft:overworld",
 			DimensionName:       "world",
 			HashedSeed:          0,
-			GameMode:            0,
+			GameMode:            1,
 			PreviousGameMode:    -1,
 			IsDebug:             false,
 			IsFlat:              true,
@@ -207,9 +203,10 @@ func handlePacket(c *connection.Connection, p packet.SerializablePacket) error {
 		if err != nil {
 			return err
 		}
+		h := w.GetHeightAt(0, 0)
 		return c.SendPacket(&packet.ClientboundPlaySynchronizePosition{
 			X:          0,
-			Y:          66,
+			Y:          types.Double(float64(h) + 1.8),
 			Z:          0,
 			Yaw:        0,
 			Pitch:      0,
@@ -271,9 +268,7 @@ func handlePacket(c *connection.Connection, p packet.SerializablePacket) error {
 		}()
 
 	case *packet.ServerboundPlayKeepAlive:
-		return c.SendPacket(&packet.ClientboundPlayKeepAlive{
-			KeepAliveId: p.KeepAliveId,
-		})
+		// 👍
 
 	case *packet.ServerboundPlayUpdatePosition:
 		chunkX, chunkZ := int(p.X)>>4, int(p.Z)>>4
@@ -315,12 +310,12 @@ func sendChunk(c *connection.Connection, ch *world.Chunk) error {
 		Heightmaps:           ch.HeightMap().Marshal(),
 		Data:                 ch.Marshal(),
 		NumBlockEntities:     0,
-		SkyLightMask:         mask,
+		SkyLightMask:         mask2,
 		BlockLightMask:       mask,
-		EmptySkyLightMask:    mask2,
+		EmptySkyLightMask:    mask,
 		EmptyBlockLightMask:  mask2,
-		SkyLightArrayCount:   0,
-		BlockLightArrayCount: 0,
+		SkyLight:             ch.MarshalSkyLight(),
+		BlockLightArrayCount: types.VarInt(0).Marshal(),
 	})
 }
 
