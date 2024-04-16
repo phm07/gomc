@@ -1,31 +1,29 @@
 package world
 
-import (
-	"log"
-	"time"
-)
-
 type World struct {
 	Height    int
 	Chunks    map[int64]*Chunk
 	Generator Generator
+	Seed      int64
 }
 
-func NewWorld(height int, generator Generator) *World {
+func NewWorld(height int, seed int64, generator Generator) *World {
 	return &World{
 		Height:    height,
 		Chunks:    make(map[int64]*Chunk),
 		Generator: generator,
+		Seed:      seed,
 	}
+}
+
+func (w *World) Size() uint64 {
+	return uint64(len(w.Chunks) * ((16 * 16 * w.Height * 5) >> 1))
 }
 
 func (w *World) GetOrGenerateChunk(x, z int) *Chunk {
 	ch := w.Chunks[int64(x)<<32|(int64(z)&0xffffffff)]
 	if ch == nil {
-		start := time.Now()
-		ch = w.Generator.Generate(w.Height, x, z)
-		gen := time.Since(start)
-		log.Printf("Generated chunk %d,%d in %s", x, z, gen)
+		ch = w.Generator.Generate(w.Seed, w.Height, x, z)
 		w.Chunks[int64(x)<<32|(int64(z)&0xffffffff)] = ch
 	}
 	return ch

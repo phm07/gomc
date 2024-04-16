@@ -16,10 +16,10 @@ var (
 	squashSpline = gospline.NewMonotoneSpline([]float64{-1, 0.25, 0.3, 1}, []float64{3, 6, 30, 40})
 )
 
-func (g *NaturalGenerator) Generate(height, x, z int) *Chunk {
+func (g *NaturalGenerator) Generate(seed int64, height, x, z int) *Chunk {
 	c := NewChunk(height, x, z)
-	p := perlin.NewPerlin(2, 2, 1, 0)
-	p2 := perlin.NewPerlin(2, 2, 3, 0)
+	p := perlin.NewPerlin(2, 2, 1, seed)
+	p2 := perlin.NewPerlin(2, 2, 3, seed)
 
 	wg := sync.WaitGroup{}
 	wg.Add(256)
@@ -31,6 +31,7 @@ func (g *NaturalGenerator) Generate(height, x, z int) *Chunk {
 
 				noise := p.Noise2D(float64((x<<4)+bx)/250.0, float64((z<<4)+bz)/250.0)
 				noise += p.Noise2D(float64((x<<4)+bx)/100.0, float64((z<<4)+bz)/100.0) * 0.25
+				noise /= 1.25
 				cont := contSpline.At(noise)
 				squash := squashSpline.At(noise)
 				off := 132 + cont*128
@@ -48,7 +49,7 @@ func (g *NaturalGenerator) Generate(height, x, z int) *Chunk {
 					}
 					noise := p2.Noise3D(float64((x<<4)+bx)/50.0+3e7, float64(y)/50.0, float64((z<<4)+bz)/50.0+3e7)
 					noise += p2.Noise3D(float64((x<<4)+bx)/25.0+3e7, float64(y)/25.0, float64((z<<4)+bz)/25.0+3e7) * 0.5
-					noise = max(min(1, noise), -1)
+					noise /= 1.5
 					if noise > thresh {
 						c.SetBlockState(bx, y, bz, data.Stone{}.Id())
 						highest = y
@@ -93,7 +94,7 @@ func (g *NaturalGenerator) Generate(height, x, z int) *Chunk {
 
 				for y := 0; y < 128; y++ {
 					if c.GetBlockState(bx, y, bz) == 0 {
-						c.SetBlockState(bx, y, bz, data.Water{}.Id())
+						c.SetBlockState(bx, y, bz, data.Water{Level: 0}.Id())
 					}
 				}
 			}()

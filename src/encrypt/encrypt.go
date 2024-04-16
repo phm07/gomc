@@ -22,6 +22,12 @@ type algorithmIdentifier struct {
 	Parameters asn1.RawValue
 }
 
+func init() {
+	if err := GenerateKeypair(); err != nil {
+		panic(err)
+	}
+}
+
 func GenerateKeypair() error {
 	var err error
 	privateKey, err = rsa.GenerateKey(rand.Reader, 1024)

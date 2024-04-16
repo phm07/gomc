@@ -8,11 +8,12 @@ import (
 	"gomc/src/connection"
 	"gomc/src/encrypt"
 	profile "gomc/src/profile"
+	"io"
 	"net/http"
 	"net/url"
 )
 
-func ValidateSession(c *connection.Connection) error {
+func ValidateSession(c *connection.Connection) (*profile.Profile, error) {
 
 	h := sha1.New()
 	h.Write([]byte(""))
@@ -26,13 +27,13 @@ func ValidateSession(c *connection.Connection) error {
 
 	req, err := http.NewRequest("GET", "https://sessionserver.mojang.com/session/minecraft/hasJoined?"+values.Encode(), nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	client := http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -47,11 +48,17 @@ func ValidateSession(c *connection.Connection) error {
 			Signature string `json:"signature"`
 		} `json:"properties"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&schema); err != nil {
-		return err
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(data, &schema); err != nil {
+		return nil, err
 	}
 	if c.Username != schema.Name {
-		return fmt.Errorf("mismatched username: %s != %s", c.Username, schema.Name)
+		return nil, fmt.Errorf("mismatched username: %s != %s", c.Username, schema.Name)
 	}
 
 	uid, err := uuid.Parse(
@@ -61,7 +68,7 @@ func ValidateSession(c *connection.Connection) error {
 			schema.Id[16:20] + "-" +
 			schema.Id[20:])
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var properties []profile.Property
@@ -73,10 +80,9 @@ func ValidateSession(c *connection.Connection) error {
 		})
 	}
 
-	c.Profile = &profile.Profile{
+	return &profile.Profile{
 		Id:         uid,
 		Name:       schema.Name,
 		Properties: properties,
-	}
-	return nil
+	}, nil
 }

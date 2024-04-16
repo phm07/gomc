@@ -59,8 +59,14 @@ type ServerboundConfigurationPluginMessage struct {
 type ServerboundConfigurationFinishAck struct{}
 
 //packet:4:0
-type ServerboundConfirmTeleport struct {
+type ServerboundPlayConfirmTeleport struct {
 	TeleportID types.VarInt
+}
+
+//packet:4:5
+type ServerboundPlayChatMessage struct {
+	Message types.String
+	Ignored types.Data
 }
 
 //packet:4:15
@@ -72,4 +78,17 @@ type ServerboundPlayKeepAlive struct {
 type ServerboundPlayUpdatePosition struct {
 	X, Y, Z  types.Double
 	OnGround types.Boolean
+}
+
+//packet:4:18
+type ServerboundPlayUpdatePositionAndRotation struct {
+	X, Y, Z    types.Double
+	Yaw, Pitch types.Float
+	OnGround   types.Boolean
+}
+
+//packet:4:19
+type ServerboundPlayUpdateRotation struct {
+	Yaw, Pitch types.Float
+	OnGround   types.Boolean
 }

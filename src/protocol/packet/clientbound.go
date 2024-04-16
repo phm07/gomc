@@ -53,6 +53,11 @@ type ClientboundPlayGameEvent struct {
 	Value types.Float
 }
 
+//packet:4:24
+type ClientboundPlayKeepAlive struct {
+	KeepAliveId types.Long
+}
+
 //packet:4:25
 type ClientboundPlayChunkData struct {
 	ChunkX, ChunkZ       types.Int
@@ -94,6 +99,20 @@ type ClientboundPlayLogin struct {
 	PortalCooldown      types.VarInt
 }
 
+const (
+	PlayerCapabilityFlagInvulnerable types.Byte = 1 << iota
+	PlayerCapabilityFlagFlying
+	PlayerCapabilityFlagAllowFlying
+	PlayerCapabilityFlagCreativeMode
+)
+
+//packet:4:36
+type ClientboundPlayPlayerCapabilities struct {
+	Flags        types.Byte
+	FlyingSpeed  types.Float
+	WalkingSpeed types.Float
+}
+
 //packet:4:3e
 type ClientboundPlaySynchronizePosition struct {
 	X, Y, Z    types.Double
@@ -107,7 +126,8 @@ type ClientboundPlaySetCenterChunk struct {
 	ChunkX, ChunkZ types.VarInt
 }
 
-//packet:4:24
-type ClientboundPlayKeepAlive struct {
-	KeepAliveId types.Long
+//packet:4:69
+type ClientboundPlaySystemMessage struct {
+	Content types.Data
+	Overlay types.Boolean
 }

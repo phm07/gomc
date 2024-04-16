@@ -3,6 +3,7 @@ package world
 import (
 	"bytes"
 	"gomc/src/nbt"
+	"gomc/src/protocol/packet"
 	"gomc/src/protocol/types"
 	"gomc/src/util"
 )
@@ -21,6 +22,27 @@ func NewChunk(height, x, z int) *Chunk {
 		Z:        z,
 		Data:     make([]uint16, height<<8),
 		SkyLight: make([]byte, height<<7+(1<<12)),
+	}
+}
+
+func (c *Chunk) Packet() packet.SerializablePacket {
+	mask := types.NewBitSet(26)
+	mask2 := types.NewBitSet(26)
+	for i := 0; i < 26; i++ {
+		mask2.SetBit(i, true)
+	}
+	return &packet.ClientboundPlayChunkData{
+		ChunkX:               types.Int(c.X),
+		ChunkZ:               types.Int(c.Z),
+		Heightmaps:           c.HeightMap().Marshal(),
+		Data:                 c.Marshal(),
+		NumBlockEntities:     0,
+		SkyLightMask:         mask2,
+		BlockLightMask:       mask,
+		EmptySkyLightMask:    mask,
+		EmptyBlockLightMask:  mask2,
+		SkyLight:             c.MarshalSkyLight(),
+		BlockLightArrayCount: types.VarInt(0).Marshal(),
 	}
 }
 

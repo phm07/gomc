@@ -25,7 +25,6 @@ type Connection struct {
 	VerifyToken     []byte
 	Secret          []byte
 	Profile         *profile.Profile
-	X, Y, Z         float64 // TODO create a proper player object
 	mu              *sync.Mutex
 }
 
@@ -34,7 +33,7 @@ func NewConnection(conn net.Conn) *Connection {
 		Conn:   conn,
 		Reader: conn,
 		Writer: conn,
-		State:  protocol.StateHandshaking,
+		State:  protocol.StateHandshake,
 		Closed: false,
 		mu:     &sync.Mutex{},
 	}

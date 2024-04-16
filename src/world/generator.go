@@ -5,7 +5,7 @@ import (
 )
 
 type Generator interface {
-	Generate(height, x, z int) *Chunk
+	Generate(seed int64, height, x, z int) *Chunk
 }
 
 type RandomGenerator struct {

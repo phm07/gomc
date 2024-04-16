@@ -60,6 +60,12 @@ func (p *ClientboundPlayGameEvent) Serialize() []byte {
 	return buf.Bytes()
 }
 
+func (p *ClientboundPlayKeepAlive) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.KeepAliveId.Marshal())
+	return buf.Bytes()
+}
+
 func (p *ClientboundPlayChunkData) Serialize() []byte {
 	var buf bytes.Buffer
 	buf.Write(p.ChunkX.Marshal())
@@ -108,6 +114,14 @@ func (p *ClientboundPlayLogin) Serialize() []byte {
 	return buf.Bytes()
 }
 
+func (p *ClientboundPlayPlayerCapabilities) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Flags.Marshal())
+	buf.Write(p.FlyingSpeed.Marshal())
+	buf.Write(p.WalkingSpeed.Marshal())
+	return buf.Bytes()
+}
+
 func (p *ClientboundPlaySynchronizePosition) Serialize() []byte {
 	var buf bytes.Buffer
 	buf.Write(p.X.Marshal())
@@ -127,9 +141,10 @@ func (p *ClientboundPlaySetCenterChunk) Serialize() []byte {
 	return buf.Bytes()
 }
 
-func (p *ClientboundPlayKeepAlive) Serialize() []byte {
+func (p *ClientboundPlaySystemMessage) Serialize() []byte {
 	var buf bytes.Buffer
-	buf.Write(p.KeepAliveId.Marshal())
+	buf.Write(p.Content.Marshal())
+	buf.Write(p.Overlay.Marshal())
 	return buf.Bytes()
 }
 
@@ -221,6 +236,16 @@ func (p *ClientboundPlayGameEvent) Deserialize(b []byte) error {
 		return err
 	}
 	p.Value, _, err = types.ReadFloat(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundPlayKeepAlive) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.KeepAliveId, _, err = types.ReadLong(r)
 	if err != nil {
 		return err
 	}
@@ -373,6 +398,24 @@ func (p *ClientboundPlayLogin) Deserialize(b []byte) error {
 	return nil
 }
 
+func (p *ClientboundPlayPlayerCapabilities) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Flags, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.FlyingSpeed, _, err = types.ReadFloat(r)
+	if err != nil {
+		return err
+	}
+	p.WalkingSpeed, _, err = types.ReadFloat(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *ClientboundPlaySynchronizePosition) Deserialize(b []byte) error {
 	var err error
 	r := bytes.NewReader(b)
@@ -421,10 +464,14 @@ func (p *ClientboundPlaySetCenterChunk) Deserialize(b []byte) error {
 	return nil
 }
 
-func (p *ClientboundPlayKeepAlive) Deserialize(b []byte) error {
+func (p *ClientboundPlaySystemMessage) Deserialize(b []byte) error {
 	var err error
 	r := bytes.NewReader(b)
-	p.KeepAliveId, _, err = types.ReadLong(r)
+	p.Content, _, err = types.ReadData(r)
+	if err != nil {
+		return err
+	}
+	p.Overlay, _, err = types.ReadBoolean(r)
 	if err != nil {
 		return err
 	}
@@ -463,6 +510,10 @@ func (*ClientboundPlayGameEvent) ID() int {
 	return 32
 }
 
+func (*ClientboundPlayKeepAlive) ID() int {
+	return 36
+}
+
 func (*ClientboundPlayChunkData) ID() int {
 	return 37
 }
@@ -475,6 +526,10 @@ func (*ClientboundPlayLogin) ID() int {
 	return 41
 }
 
+func (*ClientboundPlayPlayerCapabilities) ID() int {
+	return 54
+}
+
 func (*ClientboundPlaySynchronizePosition) ID() int {
 	return 62
 }
@@ -483,8 +538,8 @@ func (*ClientboundPlaySetCenterChunk) ID() int {
 	return 82
 }
 
-func (*ClientboundPlayKeepAlive) ID() int {
-	return 36
+func (*ClientboundPlaySystemMessage) ID() int {
+	return 105
 }
 
 func (*ClientboundStatusResponse) State() protocol.State {
@@ -519,6 +574,10 @@ func (*ClientboundPlayGameEvent) State() protocol.State {
 	return 4
 }
 
+func (*ClientboundPlayKeepAlive) State() protocol.State {
+	return 4
+}
+
 func (*ClientboundPlayChunkData) State() protocol.State {
 	return 4
 }
@@ -531,6 +590,10 @@ func (*ClientboundPlayLogin) State() protocol.State {
 	return 4
 }
 
+func (*ClientboundPlayPlayerCapabilities) State() protocol.State {
+	return 4
+}
+
 func (*ClientboundPlaySynchronizePosition) State() protocol.State {
 	return 4
 }
@@ -539,6 +602,6 @@ func (*ClientboundPlaySetCenterChunk) State() protocol.State {
 	return 4
 }
 
-func (*ClientboundPlayKeepAlive) State() protocol.State {
+func (*ClientboundPlaySystemMessage) State() protocol.State {
 	return 4
 }

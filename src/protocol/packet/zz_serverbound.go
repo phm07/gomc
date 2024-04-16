@@ -37,13 +37,22 @@ func init() {
 		return &ServerboundConfigurationFinishAck{}
 	}
 	serverbound[4][0] = func() SerializablePacket {
-		return &ServerboundConfirmTeleport{}
+		return &ServerboundPlayConfirmTeleport{}
+	}
+	serverbound[4][5] = func() SerializablePacket {
+		return &ServerboundPlayChatMessage{}
 	}
 	serverbound[4][21] = func() SerializablePacket {
 		return &ServerboundPlayKeepAlive{}
 	}
 	serverbound[4][23] = func() SerializablePacket {
 		return &ServerboundPlayUpdatePosition{}
+	}
+	serverbound[4][24] = func() SerializablePacket {
+		return &ServerboundPlayUpdatePositionAndRotation{}
+	}
+	serverbound[4][25] = func() SerializablePacket {
+		return &ServerboundPlayUpdateRotation{}
 	}
 }
 
@@ -111,9 +120,16 @@ func (p *ServerboundConfigurationFinishAck) Serialize() []byte {
 	return buf.Bytes()
 }
 
-func (p *ServerboundConfirmTeleport) Serialize() []byte {
+func (p *ServerboundPlayConfirmTeleport) Serialize() []byte {
 	var buf bytes.Buffer
 	buf.Write(p.TeleportID.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundPlayChatMessage) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Message.Marshal())
+	buf.Write(p.Ignored.Marshal())
 	return buf.Bytes()
 }
 
@@ -128,6 +144,25 @@ func (p *ServerboundPlayUpdatePosition) Serialize() []byte {
 	buf.Write(p.X.Marshal())
 	buf.Write(p.Y.Marshal())
 	buf.Write(p.Z.Marshal())
+	buf.Write(p.OnGround.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundPlayUpdatePositionAndRotation) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.X.Marshal())
+	buf.Write(p.Y.Marshal())
+	buf.Write(p.Z.Marshal())
+	buf.Write(p.Yaw.Marshal())
+	buf.Write(p.Pitch.Marshal())
+	buf.Write(p.OnGround.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundPlayUpdateRotation) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Yaw.Marshal())
+	buf.Write(p.Pitch.Marshal())
 	buf.Write(p.OnGround.Marshal())
 	return buf.Bytes()
 }
@@ -256,10 +291,24 @@ func (p *ServerboundConfigurationFinishAck) Deserialize(_ []byte) error {
 	return nil
 }
 
-func (p *ServerboundConfirmTeleport) Deserialize(b []byte) error {
+func (p *ServerboundPlayConfirmTeleport) Deserialize(b []byte) error {
 	var err error
 	r := bytes.NewReader(b)
 	p.TeleportID, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ServerboundPlayChatMessage) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Message, _, err = types.ReadString(r)
+	if err != nil {
+		return err
+	}
+	p.Ignored, _, err = types.ReadData(r)
 	if err != nil {
 		return err
 	}
@@ -288,6 +337,54 @@ func (p *ServerboundPlayUpdatePosition) Deserialize(b []byte) error {
 		return err
 	}
 	p.Z, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.OnGround, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ServerboundPlayUpdatePositionAndRotation) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.X, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.Y, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.Z, _, err = types.ReadDouble(r)
+	if err != nil {
+		return err
+	}
+	p.Yaw, _, err = types.ReadFloat(r)
+	if err != nil {
+		return err
+	}
+	p.Pitch, _, err = types.ReadFloat(r)
+	if err != nil {
+		return err
+	}
+	p.OnGround, _, err = types.ReadBoolean(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ServerboundPlayUpdateRotation) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Yaw, _, err = types.ReadFloat(r)
+	if err != nil {
+		return err
+	}
+	p.Pitch, _, err = types.ReadFloat(r)
 	if err != nil {
 		return err
 	}
@@ -334,8 +431,12 @@ func (*ServerboundConfigurationFinishAck) ID() int {
 	return 2
 }
 
-func (*ServerboundConfirmTeleport) ID() int {
+func (*ServerboundPlayConfirmTeleport) ID() int {
 	return 0
+}
+
+func (*ServerboundPlayChatMessage) ID() int {
+	return 5
 }
 
 func (*ServerboundPlayKeepAlive) ID() int {
@@ -344,6 +445,14 @@ func (*ServerboundPlayKeepAlive) ID() int {
 
 func (*ServerboundPlayUpdatePosition) ID() int {
 	return 23
+}
+
+func (*ServerboundPlayUpdatePositionAndRotation) ID() int {
+	return 24
+}
+
+func (*ServerboundPlayUpdateRotation) ID() int {
+	return 25
 }
 
 func (*ServerboundHandshake) State() protocol.State {
@@ -382,7 +491,11 @@ func (*ServerboundConfigurationFinishAck) State() protocol.State {
 	return 3
 }
 
-func (*ServerboundConfirmTeleport) State() protocol.State {
+func (*ServerboundPlayConfirmTeleport) State() protocol.State {
+	return 4
+}
+
+func (*ServerboundPlayChatMessage) State() protocol.State {
 	return 4
 }
 
@@ -391,5 +504,13 @@ func (*ServerboundPlayKeepAlive) State() protocol.State {
 }
 
 func (*ServerboundPlayUpdatePosition) State() protocol.State {
+	return 4
+}
+
+func (*ServerboundPlayUpdatePositionAndRotation) State() protocol.State {
+	return 4
+}
+
+func (*ServerboundPlayUpdateRotation) State() protocol.State {
 	return 4
 }

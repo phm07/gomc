@@ -3,7 +3,7 @@ package protocol
 type State int
 
 const (
-	StateHandshaking State = iota
+	StateHandshake State = iota
 	StateStatus
 	StateLogin
 	StateConfiguration
