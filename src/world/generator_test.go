@@ -6,7 +6,8 @@ import (
 
 func BenchmarkNaturalGenerator(b *testing.B) {
 	g := &NaturalGenerator{}
+	w := NewWorld(384, -64, 0, g)
 	for i := 0; i < b.N; i++ {
-		g.Generate(0, 384, i, 0)
+		g.Generate(w, i, 0)
 	}
 }

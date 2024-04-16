@@ -5,6 +5,7 @@ import (
 	"gomc/src/connection"
 	"gomc/src/player"
 	"gomc/src/textcomponent"
+	"gomc/src/world"
 )
 
 type EventPreLogin struct {
@@ -48,4 +49,10 @@ type EventPlayerMove struct {
 type EventPlayerSpawn struct {
 	Server *Server
 	Player *player.Player
+}
+
+type EventPlayerBlockBreak struct {
+	Server *Server
+	Player *player.Player
+	Block  *world.Block
 }

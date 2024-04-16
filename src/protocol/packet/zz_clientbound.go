@@ -53,6 +53,19 @@ func (p *ClientboundConfigurationRegistryData) Serialize() []byte {
 	return buf.Bytes()
 }
 
+func (p *ClientboundPlayAckBlockChange) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.SequenceID.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ClientboundPlayBlockUpdate) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Location.Marshal())
+	buf.Write(p.BlockID.Marshal())
+	return buf.Bytes()
+}
+
 func (p *ClientboundPlayGameEvent) Serialize() []byte {
 	var buf bytes.Buffer
 	buf.Write(p.Event.Marshal())
@@ -222,6 +235,30 @@ func (p *ClientboundConfigurationRegistryData) Deserialize(b []byte) error {
 	var err error
 	r := bytes.NewReader(b)
 	p.RegistryDataNBT, _, err = types.ReadData(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundPlayAckBlockChange) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.SequenceID, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ClientboundPlayBlockUpdate) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Location, _, err = types.ReadPosition(r)
+	if err != nil {
+		return err
+	}
+	p.BlockID, _, err = types.ReadVarInt(r)
 	if err != nil {
 		return err
 	}
@@ -506,6 +543,14 @@ func (*ClientboundConfigurationRegistryData) ID() int {
 	return 5
 }
 
+func (*ClientboundPlayAckBlockChange) ID() int {
+	return 5
+}
+
+func (*ClientboundPlayBlockUpdate) ID() int {
+	return 9
+}
+
 func (*ClientboundPlayGameEvent) ID() int {
 	return 32
 }
@@ -568,6 +613,14 @@ func (*ClientboundConfigurationFinish) State() protocol.State {
 
 func (*ClientboundConfigurationRegistryData) State() protocol.State {
 	return 3
+}
+
+func (*ClientboundPlayAckBlockChange) State() protocol.State {
+	return 4
+}
+
+func (*ClientboundPlayBlockUpdate) State() protocol.State {
+	return 4
 }
 
 func (*ClientboundPlayGameEvent) State() protocol.State {

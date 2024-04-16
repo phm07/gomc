@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"github.com/spf13/viper"
+	"gomc/src/data"
 	"gomc/src/server"
 	"gomc/src/status"
 )
@@ -15,6 +16,13 @@ func main() {
 	if err := status.Init(); err != nil {
 		panic(err)
 	}
+
+	data.PrismarineStairs{
+		Facing:      data.PrismarineStairsFacingSouth,
+		Half:        data.PrismarineStairsHalfBottom,
+		Shape:       data.PrismarineStairsShapeInnerLeft,
+		Waterlogged: true,
+	}.Id()
 
 	srv := server.NewServer(&server.Config{
 		ViewDistance: viper.GetInt("view_distance"),

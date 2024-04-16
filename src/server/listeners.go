@@ -16,6 +16,7 @@ func (s *Server) registerListeners() {
 	s.eventBus.RegisterListener(onPlayerChat)
 	s.eventBus.RegisterListener(onPlayerMove)
 	s.eventBus.RegisterListener(onPlayerSpawn)
+	s.eventBus.RegisterListener(onPlayerBlockBreak)
 }
 
 func onPreLogin(e *EventPreLogin) error {
@@ -188,5 +189,16 @@ func onPlayerSpawn(e *EventPlayerSpawn) error {
 			})
 		}
 	}()
+	return nil
+}
+
+func onPlayerBlockBreak(e *EventPlayerBlockBreak) error {
+	bx, by, bz := float32(e.Block.X)+0.5, float32(e.Block.Y)+0.5, float32(e.Block.Z)+0.5
+	px, py, pz := float32(e.Player.X), float32(e.Player.Y)+1.62, float32(e.Player.Z)
+	dx, dy, dz := bx-px, by-py, bz-pz
+	if dx*dx+dy*dy+dz*dz > 6.0*6.0 {
+		return fmt.Errorf("block out of reach")
+	}
+	e.Block.SetState(0)
 	return nil
 }

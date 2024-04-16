@@ -45,6 +45,9 @@ func (c *Connection) Close() error {
 }
 
 func (c *Connection) SendPacket(s packet.SerializablePacket) error {
+	if c.Closed {
+		return nil
+	}
 	buf := bytes.NewBuffer(s.Serialize())
 	id := types.VarInt(s.ID())
 	length := types.VarInt(id.Len() + buf.Len())

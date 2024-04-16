@@ -43,6 +43,17 @@ type ClientboundConfigurationRegistryData struct {
 	RegistryDataNBT types.Data
 }
 
+//packet:4:5
+type ClientboundPlayAckBlockChange struct {
+	SequenceID types.VarInt
+}
+
+//packet:4:9
+type ClientboundPlayBlockUpdate struct {
+	Location types.Position
+	BlockID  types.VarInt
+}
+
 const (
 	ClientboundPlayGameEventWaitForChunks types.Byte = 13
 )

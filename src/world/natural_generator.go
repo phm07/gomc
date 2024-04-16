@@ -16,10 +16,10 @@ var (
 	squashSpline = gospline.NewMonotoneSpline([]float64{-1, 0.25, 0.3, 1}, []float64{3, 6, 30, 40})
 )
 
-func (g *NaturalGenerator) Generate(seed int64, height, x, z int) *Chunk {
-	c := NewChunk(height, x, z)
-	p := perlin.NewPerlin(2, 2, 1, seed)
-	p2 := perlin.NewPerlin(2, 2, 3, seed)
+func (g *NaturalGenerator) Generate(w *World, x, z int) *Chunk {
+	c := NewChunk(w, x, z)
+	p := perlin.NewPerlin(2, 2, 1, w.Seed)
+	p2 := perlin.NewPerlin(2, 2, 3, w.Seed)
 
 	wg := sync.WaitGroup{}
 	wg.Add(256)
@@ -34,10 +34,10 @@ func (g *NaturalGenerator) Generate(seed int64, height, x, z int) *Chunk {
 				noise /= 1.25
 				cont := contSpline.At(noise)
 				squash := squashSpline.At(noise)
-				off := 132 + cont*128
+				off := 68 + cont*128
 
 				highest := 0
-				for y := 0; y < c.Height; y++ {
+				for y := c.World.MinY; y < c.World.MaxY; y++ {
 					thresh := util.Map(float64(y)-off, -squash, +squash, -1, 1)
 					if thresh >= 0.99 {
 						break
@@ -62,13 +62,13 @@ func (g *NaturalGenerator) Generate(seed int64, height, x, z int) *Chunk {
 				)
 				toff := int(p.Noise2D(float64((x<<4)+bx)/10.0, float64((z<<4)+bz)/10.0) * 7.5)
 
-				if highest > 210+toff {
+				if highest > 146+toff {
 					surfaceBlock = data.SnowBlock{}.Id()
 					crustBlock = data.SnowBlock{}.Id()
-				} else if highest > 190+toff {
+				} else if highest > 126+toff {
 					surfaceBlock = data.GrassBlock{Snowy: true}.Id()
 					crustBlock = data.Dirt{}.Id()
-				} else if highest > 110+toff {
+				} else if highest > 46+toff {
 					if noise < -0.2 {
 						surfaceBlock = data.Sand{}.Id()
 						crustBlock = data.Sand{}.Id()
@@ -81,7 +81,7 @@ func (g *NaturalGenerator) Generate(seed int64, height, x, z int) *Chunk {
 					crustBlock = data.Gravel{}.Id()
 				}
 
-				for y := highest; y >= max(0, highest-4); y-- {
+				for y := highest; y >= max(c.World.MinY, highest-4); y-- {
 					if c.GetBlockState(bx, y, bz) == 0 {
 						continue
 					}
@@ -92,7 +92,7 @@ func (g *NaturalGenerator) Generate(seed int64, height, x, z int) *Chunk {
 					}
 				}
 
-				for y := 0; y < 128; y++ {
+				for y := c.World.MinY; y < 64; y++ {
 					if c.GetBlockState(bx, y, bz) == 0 {
 						c.SetBlockState(bx, y, bz, data.Water{Level: 0}.Id())
 					}

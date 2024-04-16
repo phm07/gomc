@@ -5,7 +5,7 @@ import (
 )
 
 type Generator interface {
-	Generate(seed int64, height, x, z int) *Chunk
+	Generate(w *World, x, z int) *Chunk
 }
 
 type RandomGenerator struct {
@@ -13,8 +13,8 @@ type RandomGenerator struct {
 	Height int
 }
 
-func (g *RandomGenerator) Generate(height, x, z int) *Chunk {
-	c := NewChunk(height, x, z)
+func (g *RandomGenerator) Generate(w *World, x, z int) *Chunk {
+	c := NewChunk(w, x, z)
 	src := rand.NewSource(int64(x)<<32 | (int64(z) & 0xffffffff))
 	rng := rand.New(src)
 	for i := 0; i < g.Height<<8; i++ {

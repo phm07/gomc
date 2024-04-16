@@ -1,8 +1,11 @@
 package server
 
 import (
+	"errors"
+	"fmt"
 	"gomc/src/connection"
 	"gomc/src/protocol/packet"
+	"gomc/src/protocol/types"
 )
 
 func (s *Server) handlePlay(c *connection.Connection, p packet.SerializablePacket) error {
@@ -76,6 +79,29 @@ func (s *Server) handlePlay(c *connection.Connection, p packet.SerializablePacke
 			Player:  pl,
 			Message: string(p.Message),
 		})
+
+	case *packet.ServerboundPlayPlayerAction:
+		switch p.Status {
+		case packet.PlayerActionStatusFinishDigging:
+			if p.Location.Y < 0 || p.Location.Y > s.w.Height {
+				return fmt.Errorf("invalid y: %d", p.Location.Y)
+			}
+			b := s.w.BlockAt(p.Location.X, p.Location.Y, p.Location.Z)
+			e := &EventPlayerBlockBreak{
+				Server: s,
+				Player: s.getPlayerByConn(c),
+				Block:  b,
+			}
+			err := s.eventBus.Emit(e)
+			err = errors.Join(err, c.SendPacket(&packet.ClientboundPlayBlockUpdate{
+				Location: p.Location,
+				BlockID:  types.VarInt(b.GetState()),
+			}))
+			return errors.Join(err, c.SendPacket(&packet.ClientboundPlayAckBlockChange{
+				SequenceID: p.SequenceID,
+			}))
+		}
+		return nil
 
 	default:
 		return nil

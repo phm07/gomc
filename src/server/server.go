@@ -33,7 +33,7 @@ type Server struct {
 func NewServer(cfg *Config) *Server {
 	srv := &Server{
 		cfg:       cfg,
-		w:         world.NewWorld(384, 4, &world.NaturalGenerator{}),
+		w:         world.NewWorld(384, -64, 4, &world.NaturalGenerator{}),
 		stopCh:    make(chan struct{}),
 		playersMu: &sync.Mutex{},
 		eventBus:  event.NewBus(),

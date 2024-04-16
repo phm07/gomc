@@ -10,18 +10,18 @@ import (
 
 type Chunk struct {
 	X, Z     int
-	Height   int
+	World    *World
 	Data     []uint16
 	SkyLight []byte
 }
 
-func NewChunk(height, x, z int) *Chunk {
+func NewChunk(w *World, x, z int) *Chunk {
 	return &Chunk{
-		Height:   height,
+		World:    w,
 		X:        x,
 		Z:        z,
-		Data:     make([]uint16, height<<8),
-		SkyLight: make([]byte, height<<7+(1<<12)),
+		Data:     make([]uint16, w.Height<<8),
+		SkyLight: make([]byte, w.Height<<7+(1<<12)),
 	}
 }
 
@@ -47,6 +47,7 @@ func (c *Chunk) Packet() packet.SerializablePacket {
 }
 
 func (c *Chunk) SetSkyLight(x, y, z int, light byte) {
+	y -= c.World.MinY
 	idx := ((y << 8) + (z << 4) + x) >> 1
 	if (x & 1) == 0 {
 		c.SkyLight[idx] = (c.SkyLight[idx] & 0xf0) | (light & 0x0f)
@@ -56,6 +57,7 @@ func (c *Chunk) SetSkyLight(x, y, z int, light byte) {
 }
 
 func (c *Chunk) GetSkyLight(x, y, z int) byte {
+	y -= c.World.MinY
 	idx := ((y << 8) + (z << 4) + x) >> 1
 	if (x & 1) == 0 {
 		return c.SkyLight[idx] & 0x0f
@@ -96,16 +98,18 @@ func (c *Chunk) MarshalSkyLight() []byte {
 }
 
 func (c *Chunk) SetBlockState(x, y, z int, block uint16) {
+	y -= c.World.MinY
 	c.Data[(y<<8)+(z<<4)+x] = block
 }
 
 func (c *Chunk) GetBlockState(x, y, z int) uint16 {
+	y -= c.World.MinY
 	return c.Data[(y<<8)+(z<<4)+x]
 }
 
 func (c *Chunk) Marshal() []byte {
 	var buf bytes.Buffer
-	for i := 0; i < (c.Height >> 4); i++ {
+	for i := 0; i < (c.World.Height >> 4); i++ {
 		section := c.Data[(i << 12):((i + 1) << 12)]
 		nonAirBlocks, blockStates := packSection(section, 4, 8)
 		biomes := &PalettedContainer{
@@ -147,11 +151,11 @@ func (c *Chunk) HeightMap() nbt.Tag {
 	for i := 0; i < (len(c.Data) >> 8); i++ {
 		for j := 0; j < 256; j++ {
 			if c.Data[(i<<8)+j] != 0 {
-				heightMap[j] = uint16(i + 1)
+				heightMap[j] = uint16(i + 1 + c.World.MinY)
 			}
 		}
 	}
-	bpe := util.Log2(c.Height + 1)
+	bpe := util.Log2(c.World.Height + 1)
 	packed := pack(heightMap, bpe)
 	tags := make([]*nbt.LongTag, len(packed))
 	for i, v := range packed {
@@ -174,12 +178,12 @@ func (c *Chunk) HeightMap() nbt.Tag {
 }
 
 func (c *Chunk) GetHeightAt(x int, z int) int {
-	for i := c.Height - 1; i >= 0; i-- {
-		if c.GetBlockState(x, i, z) != 0 {
-			return i
+	for y := c.World.MaxY; y >= c.World.MinY; y-- {
+		if c.GetBlockState(x, y, z) != 0 {
+			return y
 		}
 	}
-	return 0
+	return c.World.MinY
 }
 
 func packSection(data []uint16, bpeMin, bpeThresh int) (int, *PalettedContainer) {

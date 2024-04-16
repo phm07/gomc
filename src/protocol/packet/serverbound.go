@@ -92,3 +92,31 @@ type ServerboundPlayUpdateRotation struct {
 	Yaw, Pitch types.Float
 	OnGround   types.Boolean
 }
+
+const (
+	PlayerActionStatusStartDigging types.VarInt = iota
+	PlayerActionStatusCancelDigging
+	PlayerActionStatusFinishDigging
+	PlayerActionStatusDropItemStack
+	PlayerActionStatusDropItem
+	PlayerActionStatusFinishItemUse
+	PlayerActionStatusSwapItemInHand
+)
+
+//packet:4:21
+type ServerboundPlayPlayerAction struct {
+	Status     types.VarInt
+	Location   types.Position
+	Face       types.Byte
+	SequenceID types.VarInt
+}
+
+const (
+	PlayerSwingArmMainHand types.VarInt = iota
+	PlayerSwingArmOffHand
+)
+
+//packet:4:33
+type ServerboundPlaySwingArm struct {
+	Hand types.VarInt
+}

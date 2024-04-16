@@ -54,6 +54,12 @@ func init() {
 	serverbound[4][25] = func() SerializablePacket {
 		return &ServerboundPlayUpdateRotation{}
 	}
+	serverbound[4][33] = func() SerializablePacket {
+		return &ServerboundPlayPlayerAction{}
+	}
+	serverbound[4][51] = func() SerializablePacket {
+		return &ServerboundPlaySwingArm{}
+	}
 }
 
 func (p *ServerboundHandshake) Serialize() []byte {
@@ -164,6 +170,21 @@ func (p *ServerboundPlayUpdateRotation) Serialize() []byte {
 	buf.Write(p.Yaw.Marshal())
 	buf.Write(p.Pitch.Marshal())
 	buf.Write(p.OnGround.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundPlayPlayerAction) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Status.Marshal())
+	buf.Write(p.Location.Marshal())
+	buf.Write(p.Face.Marshal())
+	buf.Write(p.SequenceID.Marshal())
+	return buf.Bytes()
+}
+
+func (p *ServerboundPlaySwingArm) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Hand.Marshal())
 	return buf.Bytes()
 }
 
@@ -395,6 +416,38 @@ func (p *ServerboundPlayUpdateRotation) Deserialize(b []byte) error {
 	return nil
 }
 
+func (p *ServerboundPlayPlayerAction) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Status, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.Location, _, err = types.ReadPosition(r)
+	if err != nil {
+		return err
+	}
+	p.Face, _, err = types.ReadByte(r)
+	if err != nil {
+		return err
+	}
+	p.SequenceID, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *ServerboundPlaySwingArm) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	p.Hand, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (*ServerboundHandshake) ID() int {
 	return 0
 }
@@ -455,6 +508,14 @@ func (*ServerboundPlayUpdateRotation) ID() int {
 	return 25
 }
 
+func (*ServerboundPlayPlayerAction) ID() int {
+	return 33
+}
+
+func (*ServerboundPlaySwingArm) ID() int {
+	return 51
+}
+
 func (*ServerboundHandshake) State() protocol.State {
 	return 0
 }
@@ -512,5 +573,13 @@ func (*ServerboundPlayUpdatePositionAndRotation) State() protocol.State {
 }
 
 func (*ServerboundPlayUpdateRotation) State() protocol.State {
+	return 4
+}
+
+func (*ServerboundPlayPlayerAction) State() protocol.State {
+	return 4
+}
+
+func (*ServerboundPlaySwingArm) State() protocol.State {
 	return 4
 }
