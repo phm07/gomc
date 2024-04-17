@@ -15,6 +15,7 @@ type Player struct {
 	Name       string
 	X, Y, Z    float64
 	Yaw, Pitch float32
+	EID        int32
 }
 
 func (p *Player) SendMessage(msg *textcomponent.Component) error {

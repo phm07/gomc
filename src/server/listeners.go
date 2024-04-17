@@ -5,6 +5,7 @@ import (
 	"gomc/src/protocol/packet"
 	"gomc/src/protocol/types"
 	"gomc/src/textcomponent"
+	"log"
 	"slices"
 	"time"
 )
@@ -58,7 +59,7 @@ func onPlayerJoin(e *EventPlayerJoin) error {
 	h := e.Server.w.GetHeightAt(0, 0)
 	err = e.Player.Conn.SendPacket(&packet.ClientboundPlaySynchronizePosition{
 		X:          0,
-		Y:          types.Double(float64(h) + 1.8),
+		Y:          types.Double(float64(h) + 1.62),
 		Z:          0,
 		Yaw:        0,
 		Pitch:      0,
@@ -83,6 +84,17 @@ func onPlayerJoin(e *EventPlayerJoin) error {
 
 func onPlayerQuit(e *EventPlayerQuit) error {
 	e.Server.BroadcastMessage(textcomponent.New(e.Player.Name + " left the game").SetColor(textcomponent.ColorYellow))
+	for _, p := range e.Server.players {
+		if p == e.Player {
+			continue
+		}
+		err := p.Conn.SendPacket(&packet.ClientboundPlayPlayerInfoRemove{
+			UUIDs: []types.UUID{e.Player.UUID[:]},
+		})
+		if err != nil {
+			log.Println(err)
+		}
+	}
 	return nil
 }
 
@@ -115,11 +127,10 @@ func onPlayerMove(e *EventPlayerMove) error {
 			for x := chunkX - vd; x <= chunkX+vd; x++ {
 				for z := chunkZ - vd; z <= chunkZ+vd; z++ {
 					if x < prevChunkX-vd || x > prevChunkX+vd || z < prevChunkZ-vd || z > prevChunkZ+vd {
-						ch := e.Server.w.GetOrGenerateChunk(x, z)
-						err = p.Conn.SendPacket(ch.Packet())
-						if err != nil {
-							return err
-						}
+						go func() {
+							ch := e.Server.w.GetOrGenerateChunk(x, z)
+							_ = p.Conn.SendPacket(ch.Packet())
+						}()
 					}
 				}
 			}
@@ -129,7 +140,35 @@ func onPlayerMove(e *EventPlayerMove) error {
 }
 
 func onPlayerSpawn(e *EventPlayerSpawn) error {
-	err := e.Player.Conn.SendPacket(&packet.ClientboundPlayPlayerInfoUpdate{
+	var others []*packet.ClientboundPlayPlayerInfoUpdatePlayer
+	for _, p := range e.Server.players {
+		if e.Player == p {
+			continue
+		}
+		others = append(others, &packet.ClientboundPlayPlayerInfoUpdatePlayer{
+			UUID: p.UUID[:],
+			Actions: []packet.ClientboundPlayPlayerInfoUpdateAction{
+				&packet.ClientboundPlayPlayerInfoUpdateActionAddPlayer{
+					Name:       types.String(p.Conn.Profile.Name),
+					Properties: []*packet.ClientboundPlayPlayerInfoUpdateActionAddPlayerProperty{},
+				},
+				&packet.ClientboundPlayPlayerInfoUpdateActionUpdateListed{
+					Listed: true,
+				},
+			},
+		})
+	}
+
+	if len(others) > 0 {
+		err := e.Player.Conn.SendPacket(&packet.ClientboundPlayPlayerInfoUpdate{
+			Players: others,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	packetSelf := &packet.ClientboundPlayPlayerInfoUpdate{
 		Players: []*packet.ClientboundPlayPlayerInfoUpdatePlayer{
 			{
 				UUID: e.Player.Conn.Profile.Id[:],
@@ -138,19 +177,27 @@ func onPlayerSpawn(e *EventPlayerSpawn) error {
 						Name:       types.String(e.Player.Conn.Profile.Name),
 						Properties: []*packet.ClientboundPlayPlayerInfoUpdateActionAddPlayerProperty{},
 					},
+					&packet.ClientboundPlayPlayerInfoUpdateActionUpdateListed{
+						Listed: true,
+					},
 				},
 			},
 		},
-	})
-	if err != nil {
-		return err
 	}
-	err = e.Player.Conn.SendPacket(&packet.ClientboundPlayGameEvent{
+	for _, p := range e.Server.players {
+		err := p.Conn.SendPacket(packetSelf)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+
+	err := e.Player.Conn.SendPacket(&packet.ClientboundPlayGameEvent{
 		Event: packet.ClientboundPlayGameEventWaitForChunks,
 	})
 	if err != nil {
 		return err
 	}
+
 	err = e.Player.Conn.SendPacket(&packet.ClientboundPlaySetCenterChunk{
 		ChunkX: 0,
 		ChunkZ: 0,
@@ -170,11 +217,11 @@ func onPlayerSpawn(e *EventPlayerSpawn) error {
 			if x == 0 && z == 0 {
 				continue
 			}
-			ch := e.Server.w.GetOrGenerateChunk(x, z)
-			err = e.Player.Conn.SendPacket(ch.Packet())
-			if err != nil {
-				return err
-			}
+			x, z := x, z
+			go func() {
+				ch := e.Server.w.GetOrGenerateChunk(x, z)
+				_ = e.Player.Conn.SendPacket(ch.Packet())
+			}()
 		}
 	}
 

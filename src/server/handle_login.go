@@ -112,6 +112,7 @@ func (s *Server) handleLogin(c *connection.Connection, p packet.SerializablePack
 			Conn: c,
 			UUID: c.Profile.Id,
 			Name: c.Profile.Name,
+			EID:  s.nextEid(),
 		}
 		s.playersMu.Lock()
 		s.players = append(s.players, pl)

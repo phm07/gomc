@@ -124,6 +124,11 @@ type ClientboundPlayPlayerCapabilities struct {
 	WalkingSpeed types.Float
 }
 
+//packet:4:3b
+type ClientboundPlayPlayerInfoRemove struct {
+	UUIDs []types.UUID
+}
+
 //packet:4:3e
 type ClientboundPlaySynchronizePosition struct {
 	X, Y, Z    types.Double

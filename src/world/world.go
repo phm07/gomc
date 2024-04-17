@@ -1,11 +1,14 @@
 package world
 
+import "sync"
+
 type World struct {
 	Height     int
 	MinY, MaxY int
 	Chunks     map[int64]*Chunk
 	Generator  Generator
 	Seed       int64
+	chunksMu   *sync.RWMutex
 }
 
 func NewWorld(height int, minY int, seed int64, generator Generator) *World {
@@ -16,18 +19,29 @@ func NewWorld(height int, minY int, seed int64, generator Generator) *World {
 		Chunks:    make(map[int64]*Chunk),
 		Generator: generator,
 		Seed:      seed,
+		chunksMu:  &sync.RWMutex{},
 	}
 }
 
 func (w *World) Size() uint64 {
-	return uint64(len(w.Chunks) * ((16 * 16 * w.Height * 5) >> 1))
+	w.chunksMu.RLock()
+	defer w.chunksMu.RUnlock()
+	var size uint64
+	for _, c := range w.Chunks {
+		size += uint64(len(c.Marshal()))
+	}
+	return size
 }
 
 func (w *World) GetOrGenerateChunk(x, z int) *Chunk {
+	w.chunksMu.RLock()
 	ch := w.Chunks[int64(x)<<32|(int64(z)&0xffffffff)]
+	w.chunksMu.RUnlock()
 	if ch == nil {
 		ch = w.Generator.Generate(w, x, z)
+		w.chunksMu.Lock()
 		w.Chunks[int64(x)<<32|(int64(z)&0xffffffff)] = ch
+		w.chunksMu.Unlock()
 	}
 	return ch
 }

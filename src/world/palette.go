@@ -31,6 +31,15 @@ func (p *PaletteIndirect) Marshal() []byte {
 	return buf.Bytes()
 }
 
+func (p *PaletteIndirect) IndexOf(v types.VarInt) int {
+	for i, u := range p.Palette {
+		if v == u {
+			return i
+		}
+	}
+	return -1
+}
+
 type PaletteDirect struct{}
 
 func (*PaletteDirect) Marshal() []byte {

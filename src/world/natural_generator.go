@@ -17,7 +17,7 @@ var (
 )
 
 func (g *NaturalGenerator) Generate(w *World, x, z int) *Chunk {
-	c := NewChunk(w, x, z)
+	blocks := make([]uint16, w.Height<<8)
 	p := perlin.NewPerlin(2, 2, 1, w.Seed)
 	p2 := perlin.NewPerlin(2, 2, 3, w.Seed)
 
@@ -37,13 +37,13 @@ func (g *NaturalGenerator) Generate(w *World, x, z int) *Chunk {
 				off := 68 + cont*128
 
 				highest := 0
-				for y := c.World.MinY; y < c.World.MaxY; y++ {
+				for y := w.MinY; y < w.MaxY; y++ {
 					thresh := util.Map(float64(y)-off, -squash, +squash, -1, 1)
 					if thresh >= 0.99 {
 						break
 					}
 					if thresh <= -0.99 {
-						c.SetBlockState(bx, y, bz, data.Stone{}.Id())
+						blocks[((y-w.MinY)<<8)|(bz<<4)|bx] = data.Stone{}.Id()
 						highest = y
 						continue
 					}
@@ -51,7 +51,7 @@ func (g *NaturalGenerator) Generate(w *World, x, z int) *Chunk {
 					noise += p2.Noise3D(float64((x<<4)+bx)/25.0+3e7, float64(y)/25.0, float64((z<<4)+bz)/25.0+3e7) * 0.5
 					noise /= 1.5
 					if noise > thresh {
-						c.SetBlockState(bx, y, bz, data.Stone{}.Id())
+						blocks[((y-w.MinY)<<8)|(bz<<4)|bx] = data.Stone{}.Id()
 						highest = y
 					}
 				}
@@ -81,26 +81,27 @@ func (g *NaturalGenerator) Generate(w *World, x, z int) *Chunk {
 					crustBlock = data.Gravel{}.Id()
 				}
 
-				for y := highest; y >= max(c.World.MinY, highest-4); y-- {
-					if c.GetBlockState(bx, y, bz) == 0 {
+				for y := highest; y >= max(w.MinY, highest-4); y-- {
+					if blocks[((y-w.MinY)<<8)|(bz<<4)|bx] == 0 {
 						continue
 					}
 					if y == highest {
-						c.SetBlockState(bx, y, bz, surfaceBlock)
+						blocks[((y-w.MinY)<<8)|(bz<<4)|bx] = surfaceBlock
 					} else {
-						c.SetBlockState(bx, y, bz, crustBlock)
+						blocks[((y-w.MinY)<<8)|(bz<<4)|bx] = crustBlock
 					}
 				}
 
-				for y := c.World.MinY; y < 64; y++ {
-					if c.GetBlockState(bx, y, bz) == 0 {
-						c.SetBlockState(bx, y, bz, data.Water{Level: 0}.Id())
+				for y := w.MinY; y < 64; y++ {
+					if blocks[((y-w.MinY)<<8)|(bz<<4)|bx] == 0 {
+						blocks[((y-w.MinY)<<8)|(bz<<4)|bx] = data.Water{}.Id()
 					}
 				}
 			}()
 		}
 	}
 	wg.Wait()
+	c := NewChunk(w, x, z, blocks)
 	c.CalculateSkyLight()
 	return c
 }

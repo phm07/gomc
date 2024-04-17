@@ -51,6 +51,18 @@ func (*ClientboundPlayPlayerInfoUpdateActionAddPlayer) Mask() byte {
 	return 0x01
 }
 
+type ClientboundPlayPlayerInfoUpdateActionUpdateListed struct {
+	Listed types.Boolean
+}
+
+func (a *ClientboundPlayPlayerInfoUpdateActionUpdateListed) Serialize() []byte {
+	return a.Listed.Marshal()
+}
+
+func (*ClientboundPlayPlayerInfoUpdateActionUpdateListed) Mask() byte {
+	return 0x08
+}
+
 type ClientboundPlayPlayerInfoUpdatePlayer struct {
 	UUID    types.UUID
 	Actions []ClientboundPlayPlayerInfoUpdateAction

@@ -11,16 +11,16 @@ import (
 type Chunk struct {
 	X, Z     int
 	World    *World
-	Data     []uint16
+	Sections []*PalettedContainer
 	SkyLight []byte
 }
 
-func NewChunk(w *World, x, z int) *Chunk {
+func NewChunk(w *World, x, z int, data []uint16) *Chunk {
 	return &Chunk{
 		World:    w,
 		X:        x,
 		Z:        z,
-		Data:     make([]uint16, w.Height<<8),
+		Sections: PalettedContainersFromBytes(data, 4, 8),
 		SkyLight: make([]byte, w.Height<<7+(1<<12)),
 	}
 }
@@ -68,7 +68,8 @@ func (c *Chunk) GetSkyLight(x, y, z int) byte {
 func (c *Chunk) CalculateSkyLight() {
 	obstructed := make([]bool, 256)
 	notObstructed := 256
-	for i := len(c.Data) - 1; i >= 0 && notObstructed > 0; i-- {
+	data := c.blockData()
+	for i := len(data) - 1; i >= 0 && notObstructed > 0; i-- {
 		xz := i & 0xff
 		if obstructed[xz] {
 			continue
@@ -80,7 +81,7 @@ func (c *Chunk) CalculateSkyLight() {
 		} else {
 			c.SkyLight[idx] = (c.SkyLight[idx] & 0x0f) | ((light & 0x0f) << 4)
 		}
-		if c.Data[i] != 0 {
+		if data[i] != 0 {
 			obstructed[xz] = true
 			notObstructed--
 		}
@@ -99,26 +100,30 @@ func (c *Chunk) MarshalSkyLight() []byte {
 
 func (c *Chunk) SetBlockState(x, y, z int, block uint16) {
 	y -= c.World.MinY
-	c.Data[(y<<8)+(z<<4)+x] = block
+	c.Sections[y>>12].SetDataAt(((y&0xf)<<8)+(z<<4)+x, block)
 }
 
 func (c *Chunk) GetBlockState(x, y, z int) uint16 {
 	y -= c.World.MinY
-	return c.Data[(y<<8)+(z<<4)+x]
+	return c.Sections[y>>12].GetDataAt(((y & 0xf) << 8) + (z << 4) + x)
 }
 
 func (c *Chunk) Marshal() []byte {
 	var buf bytes.Buffer
-	for i := 0; i < (c.World.Height >> 4); i++ {
-		section := c.Data[(i << 12):((i + 1) << 12)]
-		nonAirBlocks, blockStates := packSection(section, 4, 8)
+	for _, s := range c.Sections {
+		var nonAirBlocks int16
+		for k, v := range s.Count {
+			if k > 0 {
+				nonAirBlocks += int16(v)
+			}
+		}
 		biomes := &PalettedContainer{
 			Palette: &PaletteSingleValued{
 				Value: 39, // plains
 			},
 		}
-		buf.Write(util.Int16ToBytes(int16(nonAirBlocks)))
-		buf.Write(blockStates.Marshal())
+		buf.Write(util.Int16ToBytes(nonAirBlocks))
+		buf.Write(s.Marshal())
 		buf.Write(biomes.Marshal())
 	}
 	return buf.Bytes()
@@ -129,28 +134,12 @@ type ChunkSection struct {
 	BlockStates *PalettedContainer
 }
 
-type PalettedContainer struct {
-	BitsPerEntry types.Byte
-	Palette      Palette
-	Data         []uint64
-}
-
-func (p *PalettedContainer) Marshal() []byte {
-	var buf bytes.Buffer
-	buf.Write(p.BitsPerEntry.Marshal())
-	buf.Write(p.Palette.Marshal())
-	buf.Write(types.VarInt(len(p.Data)).Marshal())
-	for _, v := range p.Data {
-		buf.Write(util.Uint64ToBytes(v))
-	}
-	return buf.Bytes()
-}
-
 func (c *Chunk) HeightMap() nbt.Tag {
 	heightMap := make([]uint16, 256)
-	for i := 0; i < (len(c.Data) >> 8); i++ {
+	data := c.blockData()
+	for i := 0; i < (len(data) >> 8); i++ {
 		for j := 0; j < 256; j++ {
-			if c.Data[(i<<8)+j] != 0 {
+			if data[(i<<8)+j] != 0 {
 				heightMap[j] = uint16(i + 1 + c.World.MinY)
 			}
 		}
@@ -186,66 +175,10 @@ func (c *Chunk) GetHeightAt(x int, z int) int {
 	return c.World.MinY
 }
 
-func packSection(data []uint16, bpeMin, bpeThresh int) (int, *PalettedContainer) {
-	count := make(map[uint16]int)
-	for _, v := range data {
-		count[v]++
+func (c *Chunk) blockData() []uint16 {
+	var data []uint16
+	for _, s := range c.Sections {
+		data = append(data, s.Uncompress()...)
 	}
-	nonAirBlocks := 0
-	for k, v := range count {
-		if k != 0 {
-			nonAirBlocks += v
-		}
-	}
-	if len(count) == 1 {
-		return nonAirBlocks, &PalettedContainer{
-			Palette: &PaletteSingleValued{
-				Value: types.VarInt(data[0]),
-			},
-		}
-	} else if len(count) <= (1 << bpeThresh) {
-		palette := make([]types.VarInt, len(count))
-		lookup := make(map[uint16]uint16)
-		nextId := types.VarInt(0)
-		for k := range count {
-			palette[nextId] = types.VarInt(k)
-			lookup[k] = uint16(nextId)
-			nextId++
-		}
-		bpe := max(util.Log2(len(count)), bpeMin)
-		toPack := make([]uint16, len(data))
-		for i, v := range data {
-			toPack[i] = lookup[v]
-		}
-		packed := pack(toPack, bpe)
-		return nonAirBlocks, &PalettedContainer{
-			BitsPerEntry: types.Byte(bpe),
-			Palette: &PaletteIndirect{
-				Length:  types.VarInt(len(palette)),
-				Palette: palette,
-			},
-			Data: packed,
-		}
-	} else {
-		packed := pack(data, 15)
-		return nonAirBlocks, &PalettedContainer{
-			BitsPerEntry: 15,
-			Palette:      &PaletteDirect{},
-			Data:         packed,
-		}
-	}
-}
-
-func pack(data []uint16, bpe int) []uint64 {
-	res := make([]uint64, len(data)/(64/bpe))
-	idx, shift := 0, 0
-	for _, v := range data {
-		if shift > 64-bpe {
-			shift = 0
-			idx++
-		}
-		res[idx] |= uint64(v) << shift
-		shift += bpe
-	}
-	return res
+	return data
 }

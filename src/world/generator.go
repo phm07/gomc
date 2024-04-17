@@ -14,12 +14,13 @@ type RandomGenerator struct {
 }
 
 func (g *RandomGenerator) Generate(w *World, x, z int) *Chunk {
-	c := NewChunk(w, x, z)
 	src := rand.NewSource(int64(x)<<32 | (int64(z) & 0xffffffff))
 	rng := rand.New(src)
+	data := make([]uint16, w.Height<<8)
 	for i := 0; i < g.Height<<8; i++ {
-		c.Data[i] = g.Blocks[rng.Intn(len(g.Blocks))]
+		data[i] = g.Blocks[rng.Intn(len(g.Blocks))]
 	}
+	c := NewChunk(w, x, z, data)
 	c.CalculateSkyLight()
 	return c
 }

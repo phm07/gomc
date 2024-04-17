@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -28,6 +29,7 @@ type Server struct {
 	players   []*player.Player
 	playersMu *sync.Mutex
 	eventBus  *event.Bus
+	lastEid   atomic.Int32
 }
 
 func NewServer(cfg *Config) *Server {
@@ -56,7 +58,7 @@ func (s *Server) Start() {
 	t := time.Since(start)
 	nChunks := float64(vd*2+1) * float64(vd*2+1)
 	log.Printf("Generated %.0f chunks in %s (%.2f cps, avg %s)\n",
-		nChunks, t, nChunks/t.Seconds(), time.Duration(int64(t)/int64(nChunks)))
+		nChunks, t.Round(10*time.Millisecond), nChunks/t.Seconds(), time.Duration(int64(t)/int64(nChunks)))
 
 	log.Printf("World size: %s", humanize.Bytes(uint64(s.w.Size())))
 	go func() {
@@ -178,4 +180,8 @@ func (s *Server) getPlayerByConn(c *connection.Connection) *player.Player {
 		}
 	}
 	return nil
+}
+
+func (s *Server) nextEid() int32 {
+	return s.lastEid.Add(1)
 }

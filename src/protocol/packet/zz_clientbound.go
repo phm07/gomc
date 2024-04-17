@@ -135,6 +135,15 @@ func (p *ClientboundPlayPlayerCapabilities) Serialize() []byte {
 	return buf.Bytes()
 }
 
+func (p *ClientboundPlayPlayerInfoRemove) Serialize() []byte {
+	var buf bytes.Buffer
+	buf.Write(types.VarInt(len(p.UUIDs)).Marshal())
+	for _, v := range p.UUIDs {
+		buf.Write(v.Marshal())
+	}
+	return buf.Bytes()
+}
+
 func (p *ClientboundPlaySynchronizePosition) Serialize() []byte {
 	var buf bytes.Buffer
 	buf.Write(p.X.Marshal())
@@ -453,6 +462,24 @@ func (p *ClientboundPlayPlayerCapabilities) Deserialize(b []byte) error {
 	return nil
 }
 
+func (p *ClientboundPlayPlayerInfoRemove) Deserialize(b []byte) error {
+	var err error
+	r := bytes.NewReader(b)
+	var nUUIDs types.VarInt
+	nUUIDs, _, err = types.ReadVarInt(r)
+	if err != nil {
+		return err
+	}
+	p.UUIDs = make([]types.UUID, nUUIDs)
+	for i := 0; i < len(p.UUIDs); i++ {
+		p.UUIDs[i], _, err = types.ReadUUID(r)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *ClientboundPlaySynchronizePosition) Deserialize(b []byte) error {
 	var err error
 	r := bytes.NewReader(b)
@@ -575,6 +602,10 @@ func (*ClientboundPlayPlayerCapabilities) ID() int {
 	return 54
 }
 
+func (*ClientboundPlayPlayerInfoRemove) ID() int {
+	return 59
+}
+
 func (*ClientboundPlaySynchronizePosition) ID() int {
 	return 62
 }
@@ -644,6 +675,10 @@ func (*ClientboundPlayLogin) State() protocol.State {
 }
 
 func (*ClientboundPlayPlayerCapabilities) State() protocol.State {
+	return 4
+}
+
+func (*ClientboundPlayPlayerInfoRemove) State() protocol.State {
 	return 4
 }
 
